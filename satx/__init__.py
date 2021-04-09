@@ -1,5 +1,5 @@
 """
-The PEQNP System its an automatic CNF encoder and SAT Solver for General Constrained Diophantine Equations and NP-Complete Problems, full integrated with Python.
+The SATX its an automatic CNF compiler and interpreter integrated with Python.
 """
 
 from .stdlib import *

@@ -58,6 +58,9 @@ class Entity:
             self.data = self.block
         if not self.deep:
             self.deep = [self.bits]
+        if self.key is None:
+            self.key = self.encoder.new_key()
+            self.encoder.mapping(self.key, self.block)
 
     def is_in(self, item):
         bits = self.encoder.int(size=len(item))
@@ -86,7 +89,9 @@ class Entity:
             self.encoder.bv_rca_gate(self.block, other.block, self.encoder.true, output_block, self.encoder.true)
         else:
             self.encoder.bv_rca_gate(self.block, self.encoder.create_constant(other), self.encoder.true, output_block, self.encoder.true)
-        return Entity(self.encoder, block=output_block)
+        entity = Entity(self.encoder, block=output_block)
+        self.encoder.variables.append(entity)
+        return entity
 
     def __radd__(self, other):
         return self + other
@@ -119,7 +124,9 @@ class Entity:
             self.encoder.bv_lur_gate(self.block, other.block, output_block)
         else:
             self.encoder.bv_lur_gate(self.block, self.encoder.create_constant(other), output_block)
-        return Entity(self.encoder, block=output_block)
+        entity = Entity(self.encoder, block=output_block)
+        self.encoder.variables.append(entity)
+        return entity
 
     def __ne__(self, other):
         if isinstance(other, Entity):
@@ -140,7 +147,9 @@ class Entity:
             self.encoder.bv_pm_gate(self.block, other.block, output_block, self.encoder.true)
         else:
             self.encoder.bv_pm_gate(self.block,self.encoder.create_constant(other),output_block, self.encoder.true)
-        return Entity(self.encoder, block=output_block)
+        entity = Entity(self.encoder, block=output_block)
+        self.encoder.variables.append(entity)
+        return entity
 
     def __rmul__(self, other):
         return self * other
@@ -155,6 +164,7 @@ class Entity:
         else:
             if isinstance(power, Entity):
                 aa = Entity(self.encoder, bits=self.bits // 2)
+                self.encoder.variables.append(aa)
                 assert sum([aa[[i]](0, 1) for i in range(self.bits // 2)]) == 1
                 assert sum([aa[[i]](0, i) for i in range(self.bits // 2)]) == power
                 if modulo is not None:
@@ -163,6 +173,7 @@ class Entity:
                 return sum([aa[[i]](0, self ** i) for i in range(self.bits // 2)])
             else:
                 other = Entity(self.encoder, value=1)
+                self.encoder.variables.append(other)
                 for _ in range(power):
                     other *= self
                 if modulo is not None:
@@ -181,7 +192,9 @@ class Entity:
             self.encoder.bv_lud_gate(self.block, other.block, output_block, self.encoder.zero.block)
         else:
             self.encoder.bv_lud_gate(self.block, self.encoder.create_constant(other), output_block, self.encoder.zero.block)
-        return Entity(self.encoder, block=output_block)
+        entity = Entity(self.encoder, block=output_block)
+        self.encoder.variables.append(entity)
+        return entity
 
     def __sub__(self, other):
         if self.is_mip:
@@ -201,7 +214,9 @@ class Entity:
             self.encoder.bv_rca_gate(self.block, [-b for b in other.block], self.encoder.true, output_block, self.encoder.false)
         else:
             self.encoder.bv_rca_gate(self.block, [-b for b in self.encoder.create_constant(other)], self.encoder.true, output_block, self.encoder.false)
-        return Entity(self.encoder, block=output_block)
+        entity = Entity(self.encoder, block=output_block)
+        self.encoder.variables.append(entity)
+        return entity
 
     def __rsub__(self, other):
         return self - other
@@ -258,13 +273,16 @@ class Entity:
             self.value = -self.value
         if self.value is not None:
             return -self.value
-        return Entity(self.encoder, block=[-b for b in self.block]) + 1
+        entity = Entity(self.encoder, block=[-b for b in self.block]) + 1
+        self.encoder.variables.append(entity)
+        return entity
 
     def __abs__(self):
         if self.value is not None:
             return abs(self.value)
         lst = [self, -self]
         bits = self.encoder.int(size=len(lst))
+        self.encoder.variables.append(bits)
         assert sum(self.encoder.zero.iff(bits[i], self.encoder.one) for i in range(len(lst))) == self.encoder.one
         return sum(self.encoder.zero.iff(bits[i], lst[i]) for i in range(len(lst)))
 
@@ -280,7 +298,9 @@ class Entity:
             output_block = self.encoder.bv_and_gate(self.block,
                                                     self.encoder.create_constant(
                                                         other))
-        return Entity(self.encoder, block=output_block)
+        entity = Entity(self.encoder, block=output_block)
+        self.encoder.variables.append(entity)
+        return entity
 
     def __or__(self, other):
         if self.value is not None:
@@ -292,7 +312,9 @@ class Entity:
             output_block = self.encoder.bv_or_gate(self.block, other.block)
         else:
             output_block = self.encoder.bv_or_gate(self.block, self.encoder.create_constant(other))
-        return Entity(self.encoder, block=output_block)
+        entity = Entity(self.encoder, block=output_block)
+        self.encoder.variables.append(entity)
+        return entity
 
     def __xor__(self, other):
         if self.value is not None:
@@ -306,7 +328,9 @@ class Entity:
             output_block = self.encoder.bv_xor_gate(self.block,
                                                     self.encoder.create_constant(
                                                         other))
-        return Entity(self.encoder, block=output_block)
+        entity = Entity(self.encoder, block=output_block)
+        self.encoder.variables.append(entity)
+        return entity
 
     def __lshift__(self, other):
         if isinstance(other, Entity):
@@ -342,10 +366,14 @@ class Entity:
                     self.encoder.create_constant(other))
         if isinstance(other, Entity):
             output_block = self.encoder.bv_mux_gate(self.block, other.block, bit)
-            return Entity(self.encoder, block=output_block)
+            entity = Entity(self.encoder, block=output_block)
+            self.encoder.variables.append(entity)
+            return entity
         else:
             output_block = self.encoder.bv_mux_gate(self.block, self.encoder.create_constant(other), bit)
-            return Entity(self.encoder, key=str(other), block=output_block)
+            entity = Entity(self.encoder, key=str(other), block=output_block)
+            self.encoder.variables.append(entity)
+            return entity
 
     def __getitem__(self, item):
         if isinstance(item, int):
@@ -390,7 +418,9 @@ class Entity:
 
     def reverse(self, copy=False):
         if copy:
-            return Entity(self.encoder, block=self.block[::-1])
+            entity = Entity(self.encoder, block=self.block[::-1])
+            self.encoder.variables.append(entity)
+            return entity
         else:
             self.block = self.block[::-1]
         return self

@@ -6,6 +6,6 @@ Home-page: http://www.peqnp.com
 Author: Oscar Riveros
 Author-email: contact@peqnp.com
 License: copyright (c) 2012-2021 Oscar Riveros. All rights reserved.
-Description: The PEQNP system its an automatic CNF compiler and interpreter integrated with Python.
+Description: The SATX its an automatic CNF compiler and interpreter integrated with Python.
 Keywords: csp, mip, cnf, sat, diophantine
 Platform: UNKNOWN

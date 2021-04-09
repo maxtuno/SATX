@@ -20,7 +20,7 @@ SOFTWARE.
 """
 
 """
-The standard high level library for the PEQNP system.
+The standard high level library for the SATX system.
 """
 
 from .gaussian import Gaussian
@@ -29,12 +29,11 @@ from .rational import Rational
 from .solver import *
 
 csp = None
-render = False
 
 
 def check_engine():
     if csp is None:
-        print('The PEQNP System is not initialized...')
+        print('The SATX System is not initialized...')
         exit(0)
 
 
@@ -43,18 +42,18 @@ def version():
     Print the current version of the system.
     :return:
     """
-    print('PEQNP Mathematical Solver from http://www.peqnp.com')
+    print('SATX Mathematical Solver from http://www.peqnp.com')
     try:
         import pixie
-        print('PEQNP 2021 + SLIME 4 + PIXIE I')
+        print('SATX + SLIME 4 + PIXIE I')
     except ImportError:
-        print('PEQNP 2021 + SLIME 4')
+        print('SATX + SLIME 4')
 
 
 def engine(bits=None, info=False):
     """
     Initialize or reset the internal state of solver engine.
-    :param bits: Implies a $2^{bits} - 1$ search space.
+    :param bits: Implies a $2^{bits}$ search space.
     :param info: Show the info of the current system.
     :return:
     """
@@ -118,7 +117,7 @@ def satisfy(solve=True, turbo=False, log=False, assumptions=None, cnf_path='', m
     :param normalize: Indicate to the system that normalize integers from [2 ** (bits - 1), 2 ** bits - 1].
     :return: True if SATISFIABLE else False
     """
-    return csp.to_sat(csp.variables, solve=solve, turbo=turbo, log=log, assumptions=assumptions, cnf_path=cnf_path, model_path=model_path, proof_path=proof_path)
+    return csp.to_sat(solve=solve, turbo=turbo, log=log, assumptions=assumptions, cnf_path=cnf_path, model_path=model_path, proof_path=proof_path)
 
 
 def subsets(lst, k=None, key=None, complement=False):

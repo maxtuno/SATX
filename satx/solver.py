@@ -126,10 +126,15 @@ class CSP:
             return [self.add_variable() for _ in range(size)]
         return [self.add_variable() for _ in range(self.bits)]
 
+    @staticmethod
+    def new_key():
+        import uuid    
+        return str(uuid.uuid4()).replace('-', '')
+
     def create_variable(self, key=None, size=None):
         import uuid
         if key is None:
-            key = '_' + str(uuid.uuid4()).replace('-', '')
+            key = self.new_key()
         block = self.create_block(size)
         self.add_block([self.false] + [-variable for variable in block])
         self.mapping(key, block)
@@ -402,7 +407,7 @@ class CSP:
             self.or_gate(il=[il[idx], result[idx + 1]], ol=result[idx])
         return result
 
-    def to_sat(self, args, solve=True, turbo=False, log=False, assumptions=None, cnf_path='', model_path='', proof_path=''):
+    def to_sat(self, solve=True, turbo=False, log=False, assumptions=None, cnf_path='', model_path='', proof_path=''):
         if assumptions is None:
             assumptions = []
         model = slime.solve(solve, turbo, log, assumptions, cnf_path, model_path, proof_path)
@@ -417,7 +422,7 @@ class CSP:
                     file.write('c {}\n'.format(self.maps))
         if model:
             for key, value in self.map.items():
-                for arg in args:
+                for arg in self.variables:
                     if isinstance(arg, Entity) and arg.key == key:
                         ds = ''.join(map(str, [int(int(model[abs(bit) - 1]) > 0) for bit in value[::-1]]))
                         if ds[0] == '1':
