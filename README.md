@@ -1,4 +1,4 @@
-## SATX
+## SATX [![Downloads](https://pepy.tech/badge/satx)](https://pepy.tech/project/satx)
 
 The SATX its an automatic CNF compiler and interpreter integrated with Python.
 
