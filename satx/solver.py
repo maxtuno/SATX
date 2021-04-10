@@ -20,13 +20,7 @@ SOFTWARE.
 """
 
 import slime
-
-try:
-    import pixie
-
-    pixie.reset()
-except ImportError:
-    pass
+import pixie
 from satx.entity import Entity
 
 
@@ -56,12 +50,7 @@ class CSP:
         self.constants = {}
         self.add_block([-self.true])
 
-    def add_constraint(self, l, c, r):
-        try:
-            import pixie
-        except ImportError:
-            raise Exception(
-                '\nPIXIE is not installed!\ntry reinstall with:\npip install PEQNP --force --install-option=pixie')
+    def add_constraint(self, l, c, r):        
         ll = len(self.mips) * [0]
         for v in l:
             ll[v.idx] = self.mips[v.idx].value

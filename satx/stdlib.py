@@ -949,4 +949,5 @@ def is_not_prime(p):
     """
     global csp
     check_engine()
+    assert p != csp.one + csp.one
     assert pow(csp.one + csp.one, p, p) != csp.one + csp.one

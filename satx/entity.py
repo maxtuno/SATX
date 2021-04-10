@@ -64,7 +64,7 @@ class Entity:
 
     def is_in(self, item):
         bits = self.encoder.int(size=len(item))
-        assert sum(self.encoder.zero.iff(bits[i], self.encoder.one) for i in range(len(item))) == 1
+        assert sum(self.encoder.zero.iff(bits[i], self.encoder.one) for i in range(len(item))) == self.encoder.one
         assert sum(self.encoder.zero.iff(bits[i], item[i]) for i in range(len(item))) == self
         return self
 
@@ -165,7 +165,7 @@ class Entity:
             if isinstance(power, Entity):
                 aa = Entity(self.encoder, bits=self.bits // 2)
                 self.encoder.variables.append(aa)
-                assert sum([aa[[i]](0, 1) for i in range(self.bits // 2)]) == 1
+                assert sum([aa[[i]](0, 1) for i in range(self.bits // 2)]) == self.encoder.one
                 assert sum([aa[[i]](0, i) for i in range(self.bits // 2)]) == power
                 if modulo is not None:
                     assert modulo != 0
@@ -273,7 +273,7 @@ class Entity:
             self.value = -self.value
         if self.value is not None:
             return -self.value
-        entity = Entity(self.encoder, block=[-b for b in self.block]) + 1
+        entity = Entity(self.encoder, block=[-b for b in self.block]) + self.encoder.one
         self.encoder.variables.append(entity)
         return entity
 
