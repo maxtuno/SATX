@@ -1,6 +1,6 @@
 """
 ///////////////////////////////////////////////////////////////////////////////
-//        Copyright (c) 2012-2020 Oscar Riveros. all rights reserved.        //
+//        Copyright (c) 2012-2021 Oscar Riveros. all rights reserved.        //
 //                        oscar.riveros@peqnp.science                        //
 //                                                                           //
 //   without any restriction, Oscar Riveros reserved rights, patents and     //
@@ -86,15 +86,21 @@ class CSP:
     @property
     def zero(self):
         if self.__0 is None:
-            self.__0 = self.int(value=0)
-            self.constants[0] = self.__0.block
+            if 0 in self.constants:
+                self.__0 = self.int(block=self.constants[0])
+            else:
+                self.__0 = self.int(value=0)
+                self.constants[0] = self.__0.block
         return self.__0
 
     @property
     def one(self):
         if self.__1 is None:
-            self.__1 = self.int(value=1)
-            self.constants[1] = self.__1.block
+            if 1 in self.constants:
+                self.__1 = self.int(block=self.constants[1])
+            else:
+                self.__1 = self.int(value=1)
+                self.constants[1] = self.__1.block
         return self.__1
 
     def add_variable(self):
