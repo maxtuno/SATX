@@ -264,9 +264,7 @@ class Entity:
             self.encoder.add_constraint(self.constraint[:-2], self.constraint[-2], self.constraint[-1])
             del self.constraint[:]
             return True
-        if other > 0:
-            return self.__gt__(other - 1)
-        return True
+        return self.__gt__(other - 1)
 
     def __neg__(self):
         if self.is_mip:
