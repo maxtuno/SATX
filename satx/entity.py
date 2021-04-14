@@ -58,9 +58,8 @@ class Entity:
             self.data = self.block
         if not self.deep:
             self.deep = [self.bits]
-        if self.key is None:
-            self.key = self.encoder.new_key()
-            self.encoder.mapping(self.key, self.block)
+        self.key = self.encoder.new_key()
+        self.encoder.mapping(self.key, self.block)
 
     def is_in(self, item):
         bits = self.encoder.int(size=len(item))
@@ -280,7 +279,6 @@ class Entity:
             return abs(self.value)
         lst = [self, -self]
         bits = self.encoder.int(size=len(lst))
-        self.encoder.variables.append(bits)
         assert sum(self.encoder.zero.iff(bits[i], self.encoder.one) for i in range(len(lst))) == self.encoder.one
         return sum(self.encoder.zero.iff(bits[i], lst[i]) for i in range(len(lst)))
 
@@ -354,14 +352,9 @@ class Entity:
             import functools
             import operator
             if isinstance(other, Entity):
-                return self.iff(functools.reduce(operator.and_, [
-                    self.encoder.zero.iff(bit[j], 1) for j in
-                    range(self.encoder.bits)])[0], other)
+                return self.iff(functools.reduce(operator.and_, [self.encoder.zero.iff(bit[j], self.encoder.one) for j in range(self.encoder.bits)])[0], other)
             else:
-                return self.iff(functools.reduce(operator.and_, [
-                    self.encoder.zero.iff(bit[j], 1) for j in
-                    range(self.encoder.bits)])[0],
-                    self.encoder.create_constant(other))
+                return self.iff(functools.reduce(operator.and_, [self.encoder.zero.iff(bit[j], self.encoder.one) for j in range(self.encoder.bits)])[0], self.encoder.create_constant(other))
         if isinstance(other, Entity):
             output_block = self.encoder.bv_mux_gate(self.block, other.block, bit)
             entity = Entity(self.encoder, block=output_block)
@@ -369,7 +362,7 @@ class Entity:
             return entity
         else:
             output_block = self.encoder.bv_mux_gate(self.block, self.encoder.create_constant(other), bit)
-            entity = Entity(self.encoder, key=str(other), block=output_block)
+            entity = Entity(self.encoder, block=output_block)
             self.encoder.variables.append(entity)
             return entity
 

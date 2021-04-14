@@ -20,7 +20,7 @@ SOFTWARE.
 """
 
 """
-The standard high level library for the SATX system.
+The standard high level library for the SAT-X system.
 """
 
 from .gaussian import Gaussian
@@ -31,71 +31,62 @@ from .solver import *
 csp = None
 
 
-def check_engine():
-    if csp is None:
-        print('The SATX System is not initialized...')
-        exit(0)
-
-
 def version():
     """
-    Print the current version of the system.
-    :return:
+    Print the information about the system.
     """
-    print('SATX Mathematical Solver from http://www.peqnp.com')
-    try:
-        import pixie
-        print('SATX + SLIME 4 + PIXIE I')
-    except ImportError:
-        print('SATX + SLIME 4')
+    print('SAT-X Mathematical Solver from http://www.peqnp.com')
+    print('Copyright (c) 2012-2021 Oscar Riveros. all rights reserved.')
+    print('oscar.riveros@peqnp.science')
+
+
+def check_engine():
+    if csp is None:
+        print('The SAT-X system is not initialized.')
+        exit(0)
 
 
 def engine(bits=None, info=False):
     """
-    Initialize or reset the internal state of solver engine.
-    :param bits: Implies a $2^{bits}$ search space.
-    :param info: Show the info of the current system.
-    :return:
+    Initialize or reset the SAT-X system.
+    :param bits: Implies an $[-2^{bits}, 2^{bits})$ search space.
+    :param info: Print the information about the system.
     """
     global csp
-    if bits is None:
-        csp = CSP(0)
-    else:
-        csp = CSP(bits)
+    csp = CSP(0 if not bits else bits)
     if info:
         version()
 
 
 def slime_cli(cnf_path, model_path='', proof_path=''):
     """
-    Use directly the SLIME SAT Solver.
-    :param cnf_path: The cnf file to solve.
-    :param model_path: The path to the model if SAT, optional.
-    :param proof_path: The path for the DRUP-PROOF if UNSAT, optional.
-    :return: A List with the model if SAT else an empty list.
+    Use the SLIME SAT solver directly.
+    :param cnf_path: The CNF file to solve.
+    :param model_path: The path to the model if SAT (optional).
+    :param proof_path: The path for the DRUP-PROOF if UNSAT (optional).
+    :return: A list with the model if the instance is SAT or an empty list if it is UNSAT.
     """
     import slime
     return slime.slime_cli(cnf_path, model_path, proof_path)
 
 
-def integer(key=None, bits=None):
+def integer(bits=None):
     """
-    Correspond to an integer of name key, and bits bits.
-    :param key: The name of variable, appear on CNF when cnf_path is setting on satisfy().
-    :param bits: The bits of the integer.
+    Correspond to an integer.
+    :param bits: The bits for the integer.
     :return: An instance of Integer.
     """
     global csp
     check_engine()
-    csp.variables.append(csp.int(key=key, size=bits))
+    csp.variables.append(csp.int(size=bits))
     return csp.variables[-1]
 
 
 def constant(value, bits=None):
     """
-    Correspond to an constant of value with bits bits.
-    :param bits: The bits bits of the constant.
-    :param value: The value that represent the constant.
+    Correspond to an constant.
+    :param bits: The bits for the constant.
+    :param value: The value of the constant.
     :return: An instance of Constant.
     """
     global csp
@@ -104,46 +95,38 @@ def constant(value, bits=None):
     return csp.variables[-1]
 
 
-def satisfy(solve=True, turbo=False, log=False, assumptions=None, cnf_path='', model_path='', proof_path='', normalize=False):
+def satisfy(turbo=False, log=False):
     """
     Find a model for the current problem.
-    :param solve: This indicate if the instance can be solved or not, its use in conjunction with cnf_path.
-    :param turbo: This make a simplification of the model, is more fast to solve, but destroy the internal structure of the problem, need regenerate, and gent only one solution.
-    :param log: Shot the log for the SLIME SAT Solver.
-    :param assumptions: A low level interrupt on the solver, this take a list with literals assumed true, and add to the hig level model.
-    :param cnf_path: The path for the CNF representation of the problem, None by default and is not generated.
-    :param model_path: The path for the MODEL of the problem, None by default and is not generated.
-    :param proof_path: The path for the CNF DRUP-PROOF of the problem if this is unsatisfiable, None by default and is not generated.
-    :param normalize: Indicate to the system that normalize integers from [2 ** (bits - 1), 2 ** bits - 1].
+    :param turbo: This make a simplification of the model, is more fast to solve, but destroy the internal structure of the problem, need regenerate, use for only one solution.
+    :param log: Show log for the SLIME SAT Solver.
     :return: True if SATISFIABLE else False
     """
-    return csp.to_sat(solve=solve, turbo=turbo, log=log, assumptions=assumptions, cnf_path=cnf_path, model_path=model_path, proof_path=proof_path)
+    return csp.to_sat(solve=True, turbo=turbo, log=log, assumptions=None, cnf_path='', model_path='', proof_path='')
 
 
-def subsets(lst, k=None, key=None, complement=False):
+def subsets(lst, k=None, complement=False):
     """
     Generate all subsets for an specific universe of data.
     :param lst: The universe of data.
     :param k: The cardinality of the subsets.
-    :param key: The name os the binary representation of subsets.
-    :param complement: True if include in return the complement.
+    :param complement: True if include the complement in return .
     :return: (binary representation of subsets, the generic subset representation, the complement of subset if complement=True)
     """
     global csp
     check_engine()
-    bits = csp.int(key=key, size=len(lst))
+    bits = csp.int(size=len(lst))
     csp.variables.append(bits)
     if k is not None:
-        assert sum(
-            csp.zero.iff(-bits[i], csp.one) for i in range(len(lst))) == k
+        assert sum(csp.zero.iff(-bits[i], csp.one) for i in range(len(lst))) == k
     subset_ = [csp.zero.iff(-bits[i], lst[i]) for i in range(len(lst))]
     csp.variables += subset_
     if complement:
         complement_ = [csp.zero.iff(bits[i], lst[i]) for i in range(len(lst))]
         csp.variables += complement_
-        return bits, subset_, complement_
+        return subset_, complement_
     else:
-        return bits, subset_
+        return subset_
 
 
 def subset(data, k, empty=None, complement=False):
@@ -168,10 +151,9 @@ def subset(data, k, empty=None, complement=False):
     return subset_
 
 
-def vector(key=None, bits=None, size=None, is_gaussian=False, is_rational=False, is_mip=False, is_real=False):
+def vector(bits=None, size=None, is_gaussian=False, is_rational=False, is_mip=False, is_real=False):
     """
     A vector of integers.
-    :param key: The generic name for the array this appear indexed on cnf.
     :param bits: The bit bits for each integer.
     :param size: The bits of the vector.
     :param is_gaussian: Indicate of is a Gaussian Integers vector.
@@ -192,15 +174,14 @@ def vector(key=None, bits=None, size=None, is_gaussian=False, is_rational=False,
             lns.append(linear(is_real=is_real))
         return lns
     else:
-        array_ = csp.array(key=key, size=bits, dimension=size)
+        array_ = csp.array(size=bits, dimension=size)
         csp.variables += array_
     return array_
 
 
-def matrix(key=None, bits=None, dimensions=None, is_gaussian=False, is_rational=False, is_mip=False, is_real=False):
+def matrix(bits=None, dimensions=None, is_gaussian=False, is_rational=False, is_mip=False, is_real=False):
     """
     A matrix of integers.
-    :param key: The generic name for the Matrix this appear indexed on cnf.
     :param bits: The bit bits for each integer.
     :param dimensions: An tuple with the dimensions for the Matrix (n, m).
     :param is_gaussian: Indicate of is a Gaussian Integers vector.
@@ -221,15 +202,15 @@ def matrix(key=None, bits=None, dimensions=None, is_gaussian=False, is_rational=
                 row.append(lns[-1])
             else:
                 if is_rational:
-                    x = integer(key='{}_{}_{}_n'.format(key, i, j) if key is not None else key, bits=bits)
-                    y = integer(key='{}_{}_{}_d'.format(key, i, j) if key is not None else key, bits=bits)
+                    x = integer(bits=bits)
+                    y = integer(bits=bits)
                     csp.variables.append(rational(x, y))
                 elif is_gaussian:
-                    x = integer(key='{}_{}_{}_n'.format(key, i, j) if key is not None else key, bits=bits)
-                    y = integer(key='{}_{}_{}_d'.format(key, i, j) if key is not None else key, bits=bits)
+                    x = integer(bits=bits)
+                    y = integer(bits=bits)
                     csp.variables.append(gaussian(x, y))
                 else:
-                    csp.variables.append(integer(key='{}_{}_{}_n'.format(key, i, j) if key is not None else key, bits=bits))
+                    csp.variables.append(integer(bits=bits))
                 row.append(csp.variables[-1])
         matrix_.append(row)
     return matrix_
@@ -246,25 +227,25 @@ def matrix_permutation(lst, n):
     check_engine()
     xs = vector(size=n)
     ys = vector(size=n)
-    csp.apply(xs, single=lambda x: x < n)
+    csp.apply(xs, single=lambda x: 0 <= x < n)
     csp.apply(xs, dual=lambda a, b: a != b)
     csp.indexing(xs, ys, lst)
     return xs, ys
 
 
-def permutations(lst, n, key=None):
+def permutations(lst, n):
     """
-    Entangle all permutations of bits n for the vector lst.
+    Entangle all permutations of size n of a list.
     :param lst: The list to entangle.
     :param n: The bits of entanglement.
     :return: (indexes, values)
     """
     check_engine()
-    xs = vector(size=n, key=key)
+    xs = vector(size=n)
     ys = vector(size=n)
     for i in range(n):
         assert element(ys[i], lst) == xs[i]
-    apply_single(xs, lambda a: a < n)
+    apply_single(xs, lambda a: 0 <= a < n)
     apply_dual(xs, lambda a, b: a != b)
     return xs, ys
 
@@ -292,7 +273,7 @@ def all_binaries(lst):
     """
     check_engine()
     global csp
-    csp.apply(lst, single=lambda arg: arg <= 1)
+    csp.apply(lst, single=lambda arg: 0 <= arg <= 1)
 
 
 def switch(x, ith, neg=False):
@@ -517,8 +498,8 @@ def element(item, data):
     global csp
     check_engine()
     ith = integer()
-    csp.variables.append(ith)
     csp.element(ith, data, item)
+    csp.variables.append(ith)
     return csp.variables[-1]
 
 
@@ -532,8 +513,8 @@ def index(ith, data):
     global csp
     check_engine()
     item = integer()
-    csp.variables.append(item)
     csp.element(ith, data, item)
+    csp.variables.append(item)
     return csp.variables[-1]
 
 
@@ -833,16 +814,15 @@ def reshape(lst, dimensions):
     return csp.reshape(lst, dimensions)
 
 
-def tensor(dimensions, key=None):
+def tensor(dimensions):
     """
     Create a tensor
     :param dimensions: The list of dimensions
-    :param key: The name of tensor for CNF rendering
     :return: A tensor
     """
     global csp
     check_engine()
-    csp.variables.append(csp.int(key=key, size=None, deep=dimensions))
+    csp.variables.append(csp.int(size=None, deep=dimensions))
     return csp.variables[-1]
 
 
@@ -914,7 +894,7 @@ def minimize(objective, solve=True, lp_path=''):
 
 def clear(lst):
     """
-    Clear a list of integers, used with opmization rutines.
+    Clear a list of integers, used with optimization routines.
     :param lst: The coherent list of integers to clear.
     """
     for x in lst:
@@ -933,6 +913,7 @@ def rotate(x, k):
         assert x[[(i + k) % bits()]](0, 1) == v[[i]](0, 1)
     return v
 
+
 def is_prime(p):
     """
     Indicate that p is prime.
@@ -941,6 +922,7 @@ def is_prime(p):
     global csp
     check_engine()
     assert pow(csp.one + csp.one, p, p) == csp.one + csp.one
+
 
 def is_not_prime(p):
     """

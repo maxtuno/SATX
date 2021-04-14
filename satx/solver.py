@@ -345,7 +345,6 @@ class CSP:
         npos = self.and_gate(il=[lhs_msb, -rhs_msb])
         return self.or_gate(il=[npos, sleq], ol=ol)
 
-
     def bv_eq_gate(self, lhs_il, rhs_il, ol=None):
         if ol is None:
             ol = self.add_variable()
@@ -526,14 +525,15 @@ class CSP:
     def subset(self, k, data, empty=None, complement=False):
         x = self.int(size=len(data))
         self.at_most_k(x, k)
-        y = self.array(len(data))
+        y = self.array(dimension=len(data))
         if complement:
-            z = self.array(len(data))
+            z = self.array(dimension=len(data))
         for i in range(len(data)):
             assert self.zero.iff(x[i], data[i]) == self.zero.iff(x[i], y[i])
+            assert self.zero.iff(-x[i], self.zero if empty is None else empty) == self.zero.iff(-x[i], y[i])
             if complement:
                 assert self.zero.iff(-x[i], data[i]) == self.zero.iff(-x[i], z[i])
-            assert self.zero.iff(-x[i], self.zero if empty is None else empty) == self.zero.iff(-x[i], y[i])
+                assert self.zero.iff(x[i], self.zero if empty is None else empty) == self.zero.iff(x[i], z[i])
         if complement:
             return y, z
         return y
