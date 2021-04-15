@@ -10,7 +10,7 @@ while 0 in data:
 
 print(data)
 
-satx.engine(sum(map(abs, data)).bit_length() + 1)
+satx.engine(sum(map(abs, data)).bit_length() + 2)
 
 x = satx.tensor(dimensions=(len(data),))
 

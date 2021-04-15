@@ -127,7 +127,6 @@ class CSP:
         return str(uuid.uuid4()).replace('-', '')
 
     def create_variable(self, key=None, size=None):
-        import uuid
         if key is None:
             key = self.new_key()
         block = self.create_block(size)
@@ -140,7 +139,7 @@ class CSP:
             size = self.bits
         if value in self.constants.keys():
             return self.constants[value]
-        sign = value >= 0
+        sign = value > 0
         if not sign:
             self.constants[value] = [-b for b in self.create_block(size=size)]
         else:
@@ -247,7 +246,13 @@ class CSP:
         return self.gate_vector(self.binary_xor_gate, lhs_il, rhs_il, ol)
 
     def bv_xnor_gate(self, lhs_il, rhs_il, ol=None):
-        return self.gate_vector(self.binary_xnor_gate, lhs_il, rhs_il, ol)        
+        return self.gate_vector(self.binary_xnor_gate, lhs_il, rhs_il, ol)
+
+    def bv_rcs_gate(self, lhs_il, rhs_il, ol=None):
+        fl_rhs = [-x for x in rhs_il]
+        one = self.add_variable()
+        self.add_block([one])
+        return self.bv_rca_gate(lhs_il=lhs_il, rhs_il=fl_rhs, carry_in_lit=one, ol=ol)
 
     def bv_rca_gate(self, lhs_il, rhs_il, carry_in_lit=None, ol=None, carry_out_lit=None):
         wt = min(len(lhs_il), len(rhs_il))

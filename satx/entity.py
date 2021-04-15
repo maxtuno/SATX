@@ -145,7 +145,7 @@ class Entity:
         if isinstance(other, Entity):
             self.encoder.bv_pm_gate(self.block, other.block, output_block, self.encoder.true)
         else:
-            self.encoder.bv_pm_gate(self.block,self.encoder.create_constant(other),output_block, self.encoder.true)
+            self.encoder.bv_pm_gate(self.block, self.encoder.create_constant(other), output_block, self.encoder.true)
         entity = Entity(self.encoder, block=output_block)
         self.encoder.variables.append(entity)
         return entity
@@ -208,11 +208,10 @@ class Entity:
             else:
                 return self.value - other
         output_block = self.encoder.create_block()
-        other -= 1
         if isinstance(other, Entity):
-            self.encoder.bv_rca_gate(self.block, [-b for b in other.block], self.encoder.true, output_block, self.encoder.false)
+            output_block = self.encoder.bv_rcs_gate(self.block, other.block, output_block)
         else:
-            self.encoder.bv_rca_gate(self.block, [-b for b in self.encoder.create_constant(other)], self.encoder.true, output_block, self.encoder.false)
+            output_block = self.encoder.bv_rcs_gate(self.block, self.encoder.create_constant(other), output_block)
         entity = Entity(self.encoder, block=output_block)
         self.encoder.variables.append(entity)
         return entity
