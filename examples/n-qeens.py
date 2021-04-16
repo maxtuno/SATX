@@ -1,5 +1,7 @@
 import satx
 
+# https://www.sat-x.io/2021/04/15/n-queens
+
 n = 8
 
 satx.engine(n.bit_length() + 1)
