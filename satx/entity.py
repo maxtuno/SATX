@@ -379,7 +379,6 @@ class Entity:
             if self.bin:
                 return self.bin
             bits = []
-            n = abs(n)
             for i in range(self.bits):
                 if n % 2 == 0:
                     bits += [False]
