@@ -1,6 +1,7 @@
 import satx
 
 # https://www.sat-x.io/2021/04/16/cambridge-interview-question/
+# ref: https://www.youtube.com/watch?v=uHUFnSBL4rw (external youtube video)
 
 opt = 0
 while True:
