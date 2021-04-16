@@ -129,10 +129,10 @@ def subsets(lst, k=None, complement=False):
         return subset_
 
 
-def subset(data, k, empty=None, complement=False):
+def subset(lst, k, empty=None, complement=False):
     """
     An operative structure (like integer ot constant) that represent a subset of at most k elements.
-    :param data: The data for the subsets.
+    :param lst: The data for the subsets.
     :param k: The maximal bits for subsets.
     :param empty: The empty element, 0, by default.
     :param complement: True if include in return the complement.
@@ -141,9 +141,9 @@ def subset(data, k, empty=None, complement=False):
     global csp
     check_engine()
     if complement:
-        subset_, complement_ = csp.subset(k, data, empty, complement=complement)
+        subset_, complement_ = csp.subset(k, lst, empty, complement=complement)
     else:
-        subset_ = csp.subset(k, data, empty)
+        subset_ = csp.subset(k, lst, empty)
     csp.variables += subset_
     if complement:
         csp.variables += complement_
