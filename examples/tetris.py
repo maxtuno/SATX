@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import satx
 
-# This SATX script try to put *all* pieces of full (size) sets in a n x m grid.
+# This SAT-X script try to put *all* pieces of full (size) sets in a n x m grid.
 
 if __name__ == "__main__":
 
