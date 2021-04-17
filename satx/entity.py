@@ -220,7 +220,7 @@ class Entity:
         return entity
 
     def __rsub__(self, other):
-        return self - other
+        return -(self - other)
 
     def __lt__(self, other):
         if self.value is not None:
@@ -323,9 +323,7 @@ class Entity:
         if isinstance(other, Entity):
             output_block = self.encoder.bv_xor_gate(self.block, other.block)
         else:
-            output_block = self.encoder.bv_xor_gate(self.block,
-                                                    self.encoder.create_constant(
-                                                        other))
+            output_block = self.encoder.bv_xor_gate(self.block, self.encoder.create_constant(other))
         entity = Entity(self.encoder, block=output_block)
         self.encoder.variables.append(entity)
         return entity
