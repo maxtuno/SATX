@@ -1,6 +1,8 @@
 import numpy
 import satx
 
+# ref https://www.sat-x.io/2021/04/19/three-dimensional-noughts-and-crosses/
+
 '''
 We first create a list of all possible lines and diagonals in a 3-D tic-tac-toe board. 
 Each is represented as a Python tuple with 3 entries, where each entry gives the (i,j,k) 
