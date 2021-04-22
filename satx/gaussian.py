@@ -19,7 +19,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from .entity import *
+from .unit import *
 
 
 class Gaussian:
@@ -33,7 +33,7 @@ class Gaussian:
         return True
 
     def __ne__(self, other):
-        bit = Entity(self.real.encoder, bits=2)
+        bit = Unit(self.real.encoder, bits=2)
         assert (self.real - other.real).iff(bit[0], self.imag - other.imag) != 0
         return True
 
@@ -50,35 +50,20 @@ class Gaussian:
         return Gaussian(self.real - other.real, self.imag - other.imag)
 
     def __mul__(self, other):
-        return Gaussian((self.real * other.real) - (self.imag * other.imag),
-                        ((self.real * other.imag) + (self.imag * other.real)))
+        return Gaussian((self.real * other.real) - (self.imag * other.imag), ((self.real * other.imag) + (self.imag * other.real)))
 
     def __truediv__(self, other):
         return Gaussian(
-            ((self.real * other.real) + (self.imag * other.imag)) / (
-                        other.real ** 2 + other.imag ** 2),
-            ((self.imag * other.real) - (self.real * other.imag)) / (
-                        other.real ** 2 + other.imag ** 2))
+            ((self.real * other.real) + (self.imag * other.imag)) / (other.real ** 2 + other.imag ** 2), ((self.imag * other.real) - (self.real * other.imag)) / (other.real ** 2 + other.imag ** 2))
 
     def __pow__(self, power, modulo=None):
-        if isinstance(power, Entity):
-            slots = Entity(power.encoder, bits=power.encoder.deep)
-            assert sum([power.encoder.zero.iff(slots[i], 1) for i in
-                        range(power.encoder.deep)]) == 1
-            assert sum([power.encoder.zero.iff(slots[i], i) for i in
-                        range(power.encoder.deep)]) == power
-            return sum(
-                [Gaussian(power.encoder.zero.iff(slots[i], 1), 0) * (self ** i)
-                 for i in range(power.encoder.deep)])
-        else:
-            other = self
-            for _ in range(power - 1):
-                other *= self
-            return other
+        other = self
+        for _ in range(power - 1):
+            other *= self
+        return other
 
     def __abs__(self):
-        return Gaussian(self.real.encoder.sqrt(self.real ** 2 + self.imag ** 2),
-                        0)
+        return Gaussian(self.real.encoder.sqrt(self.real ** 2 + self.imag ** 2), 0)
 
     def __repr__(self):
         return '({}+{}j)'.format(self.real, self.imag)

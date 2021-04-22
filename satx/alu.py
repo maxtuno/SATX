@@ -21,19 +21,14 @@ SOFTWARE.
 
 import slime
 import pixie
-from satx.entity import Entity
+from satx.unit import Unit
 
 
-class CSP:
+class ALU:
     def __init__(self, bits=None):
-        slime.reset()
-        try:
-            import pixie
-            pixie.reset()
-        except ImportError:
-            pass
-
         import sys
+        slime.reset()
+        pixie.reset()
         sys.setrecursionlimit(1 << 16)
         self.mips = []
         self.variables = []
@@ -50,7 +45,7 @@ class CSP:
         self.constants = {}
         self.add_block([-self.true])
 
-    def add_constraint(self, l, c, r):        
+    def add_constraint(self, l, c, r):
         ll = len(self.mips) * [0]
         for v in l:
             ll[v.idx] = self.mips[v.idx].value
@@ -58,7 +53,7 @@ class CSP:
             del self.mips[v.idx].constraint[:]
             self.mips[v.idx].constraint.append(v)
         pixie.add_constraint(ll, c, r)
-        if isinstance(r, Entity):
+        if isinstance(r, Unit):
             r.value = 1
             del r.constraint[:]
             r.constraint.append(v)
@@ -123,7 +118,7 @@ class CSP:
 
     @staticmethod
     def new_key():
-        import uuid    
+        import uuid
         return str(uuid.uuid4()).replace('-', '')
 
     def create_variable(self, key=None, size=None):
@@ -166,7 +161,7 @@ class CSP:
     def and_gate(self, il, ol=None):
         if ol is None:
             ol = self.add_variable()
-        fc = list(map(lambda x: -x, il))
+        fc = [-b for b in il]
         fc.append(ol)
         self.add_block(fc)
         for lit in il:
@@ -191,7 +186,7 @@ class CSP:
         self.add_block([-l1, -l2, ol])
         self.add_block([l1, -l2, -ol])
         self.add_block([-l1, l2, -ol])
-        return ol        
+        return ol
 
     def binary_mux_gate(self, il, ol=None):
         if ol is None:
@@ -422,7 +417,7 @@ class CSP:
         if model:
             for key, value in self.map.items():
                 for arg in self.variables:
-                    if isinstance(arg, Entity) and arg.key == key:
+                    if isinstance(arg, Unit) and arg.key == key:
                         ds = ''.join(map(str, [int(int(model[abs(bit) - 1]) > 0) for bit in value[::-1]]))
                         if ds[0] == '1':
                             arg.value = -int(''.join(['0' if d == '1' else '1' for d in ds[1:]]), 2) - 1
@@ -434,7 +429,7 @@ class CSP:
         return False
 
     def int(self, key=None, block=None, value=None, size=None, deep=None, is_mip=False, is_real=False):
-        return Entity(self, key=key, block=block, value=value, bits=size, deep=deep, is_mip=is_mip, is_real=is_real)
+        return Unit(self, key=key, block=block, value=value, bits=size, deep=deep, is_mip=is_mip, is_real=is_real)
 
     def array(self, dimension, size=None, key=None):
         if size is not None:
@@ -481,7 +476,7 @@ class CSP:
     def factorial(self, x):
         import functools
         import operator
-        sub = Entity(self, bits=self.bits)
+        sub = Unit(self, bits=self.bits)
         assert sum([self.zero.iff(sub[i], self.one) for i in range(self.bits)]) == self.one
         assert sum([self.zero.iff(sub[i], i) for i in range(self.bits)]) == x
         return sum([self.zero.iff(sub[i], functools.reduce(operator.mul, [x - j for j in range(i)])) for i in range(1, self.bits)])
@@ -495,7 +490,7 @@ class CSP:
                 return functools.reduce(operator.add, xs)
             return self.zero
 
-        sub = Entity(self, bits=self.bits)
+        sub = Unit(self, bits=self.bits)
         assert sum([self.zero.iff(sub[j], self.one) for j in range(self.bits)]) == self.one
         assert sum([self.zero.iff(sub[j], j) for j in range(self.bits)]) == n + self.one
         return sum([self.zero.iff(sub[j], __sum([f(j) for j in range(i, j)])) for j in range(i, self.bits)])
@@ -509,7 +504,7 @@ class CSP:
                 return functools.reduce(operator.mul, xs)
             return self.one
 
-        sub = Entity(self, bits=self.bits)
+        sub = Unit(self, bits=self.bits)
         assert sum([self.zero.iff(sub[j], self.one) for j in range(self.bits)]) == self.one
         assert sum([self.zero.iff(sub[j], j) for j in range(self.bits)]) == n + self.one
         return sum([self.zero.iff(sub[j], __pi([f(j) for j in range(i, j)])) for j in range(i, self.bits)])

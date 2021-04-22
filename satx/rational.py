@@ -19,7 +19,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from .entity import *
+from .unit import *
 
 
 class Rational:
@@ -29,8 +29,8 @@ class Rational:
         assert self.denominator != self.denominator.encoder.zero
 
     def __eq__(self, other):
-        c = Entity(self.numerator.encoder)
-        if isinstance(other, Entity):
+        c = Unit(self.numerator.encoder)
+        if isinstance(other, Unit):
             assert self.numerator == c * other
             assert self.denominator == c * self.denominator.encoder.one
         else:
@@ -62,7 +62,7 @@ class Rational:
         return Rational(self.denominator * other.numerator - self.numerator * other.denominator, self.denominator * other.denominator)
 
     def __mul__(self, other):
-        if isinstance(other, Entity):
+        if isinstance(other, Unit):
             return Rational(self.numerator * other, self.denominator)
         return Rational(self.numerator * other.numerator, self.denominator * other.denominator)
 
@@ -70,28 +70,28 @@ class Rational:
         return other.invert() * self
 
     def __le__(self, other):
-        if isinstance(other, Entity):
+        if isinstance(other, Unit):
             assert self.numerator * other >= self.denominator
         else:
             assert self.numerator * other.denominator >= self.denominator * other.numerator
         return True
 
     def __ge__(self, other):
-        if isinstance(other, Entity):
+        if isinstance(other, Unit):
             assert self.numerator <= other * self.denominator
         else:
             assert self.numerator * other.denominator <= self.denominator * other.numerator
         return True
 
     def __lt__(self, other):
-        if isinstance(other, Entity):
+        if isinstance(other, Unit):
             assert self.numerator * other > self.denominator
         else:
             assert self.numerator * other.denominator > self.denominator * other.numerator
         return True
 
     def __gt__(self, other):
-        if isinstance(other, Entity):
+        if isinstance(other, Unit):
             assert self.numerator < other * self.denominator
         else:
             assert self.numerator * other.denominator < self.denominator * other.numerator
@@ -99,21 +99,11 @@ class Rational:
 
     def __pow__(self, power, modulo=None):
         other = Rational(self.numerator, self.denominator)
-        if isinstance(power, Entity):
-            aa = Entity(power.encoder, bits=power.bits // 2)
-            assert aa[[0]](0, 1) == 0
-            assert sum([aa[[i]](0, 1) for i in range(power.bits // 2)]) == 1
-            assert sum([aa[[i]](0, i) for i in range(power.bits // 2)]) == power
-            if modulo is not None:
-                assert modulo != 0
-                return sum([Rational(aa[[i]](0, other.numerator), aa[[i]](1, other.denominator)) for i in range(power.bits // 2)]) % modulo
-            return sum([Rational(aa[[i]](0, other.numerator), aa[[i]](1, other.denominator)) ** i for i in range(power.bits // 2)])
-        else:
-            for _ in range(power - 1):
-                other *= self
-            if modulo is not None:
-                return other % modulo
-            return other
+        for _ in range(power - 1):
+            other *= self
+        if modulo is not None:
+            return other % modulo
+        return other
 
     def __abs__(self):
         if self.denominator == 0:
@@ -125,7 +115,7 @@ class Rational:
 
     def __repr__(self):
         if self.denominator == 0:
-            self.denominator = 1        
+            self.denominator = 1
         return '({} / {})'.format(self.numerator, self.denominator)
 
     def __float__(self):

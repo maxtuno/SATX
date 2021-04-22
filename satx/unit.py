@@ -20,7 +20,7 @@ SOFTWARE.
 """
 
 
-class Entity:
+class Unit:
     def __init__(self, encoder, key=None, block=None, value=None, bits=None, deep=None, is_mip=False, is_real=False):
         self.key = key
         self.model = []
@@ -76,22 +76,22 @@ class Entity:
         if self.is_mip:
             if not self.constraint:
                 self.constraint.append(self)
-            if isinstance(other, Entity):
+            if isinstance(other, Unit):
                 self.constraint += other.constraint
             return self
         if self.value is not None:
-            if isinstance(other, Entity):
+            if isinstance(other, Unit):
                 return self.value + other.value
             return self.value + other
         output_block = self.encoder.create_block()
-        if isinstance(other, Entity):
+        if isinstance(other, Unit):
             self.encoder.bv_rca_gate(self.block, other.block, self.encoder.true, output_block, self.encoder.true)
         else:
             if other < 0:
                 self.encoder.bv_rcs_gate(self.block, self.encoder.create_constant(-other), output_block)
             else:
                 self.encoder.bv_rca_gate(self.block, self.encoder.create_constant(other), self.encoder.true, output_block, self.encoder.true)
-        entity = Entity(self.encoder, block=output_block)
+        entity = Unit(self.encoder, block=output_block)
         self.encoder.variables.append(entity)
         return entity
 
@@ -106,11 +106,11 @@ class Entity:
             del self.constraint[:]
             return True
         if self.value is not None:
-            if isinstance(other, Entity):
+            if isinstance(other, Unit):
                 return self.value == other.value
             else:
                 return self.value == other
-        if isinstance(other, Entity):
+        if isinstance(other, Unit):
             self.encoder.bv_eq_gate(self.block, other.block, self.encoder.false)
         else:
             self.encoder.bv_eq_gate(self.block, self.encoder.create_constant(other), self.encoder.false)
@@ -122,16 +122,16 @@ class Entity:
         if self.value is not None and other.value is None:
             return self.value % other
         output_block = self.encoder.create_block()
-        if isinstance(other, Entity):
+        if isinstance(other, Unit):
             self.encoder.bv_lur_gate(self.block, other.block, output_block)
         else:
             self.encoder.bv_lur_gate(self.block, self.encoder.create_constant(other), output_block)
-        entity = Entity(self.encoder, block=output_block)
+        entity = Unit(self.encoder, block=output_block)
         self.encoder.variables.append(entity)
         return entity
 
     def __ne__(self, other):
-        if isinstance(other, Entity):
+        if isinstance(other, Unit):
             return self.encoder.bv_eq_gate(self.block, other.block, self.encoder.true)
         return self.encoder.bv_eq_gate(self.block, self.encoder.create_constant(other), self.encoder.true)
 
@@ -141,15 +141,15 @@ class Entity:
             self.constraint.append(self)
             return self
         if self.value is not None:
-            if isinstance(other, Entity):
+            if isinstance(other, Unit):
                 return self.value * other.value
             return self.value * other
         output_block = self.encoder.create_block()
-        if isinstance(other, Entity):
+        if isinstance(other, Unit):
             self.encoder.bv_pm_gate(self.block, other.block, output_block, self.encoder.true)
         else:
             self.encoder.bv_pm_gate(self.block, self.encoder.create_constant(other), output_block, self.encoder.true)
-        entity = Entity(self.encoder, block=output_block)
+        entity = Unit(self.encoder, block=output_block)
         self.encoder.variables.append(entity)
         return entity
 
@@ -157,24 +157,26 @@ class Entity:
         return self * other
 
     def __pow__(self, power, modulo=None):
-        if self.value is not None and not isinstance(power, Entity):
+        if self.value is not None and not isinstance(power, Unit):
             return self.value ** power
         elif self.value is not None and power.value is not None:
             if modulo is not None:
                 return pow(self.value, power.value, modulo)
             return self.value ** power.value
         else:
-            if isinstance(power, Entity):
-                aa = Entity(self.encoder, bits=self.bits // 2)
+            if isinstance(power, Unit):
+                import functools
+                import operator
+                aa = Unit(self.encoder, bits=2 * self.bits // 3)
                 self.encoder.variables.append(aa)
-                assert sum([aa[[i]](0, 1) for i in range(self.bits // 2)]) == self.encoder.one
-                assert sum([aa[[i]](0, i) for i in range(self.bits // 2)]) == power
+                assert functools.reduce(operator.add, [aa[[i]](0, 1) for i in range(2 * self.bits // 3)]) == self.encoder.one
+                assert functools.reduce(operator.ior, [aa[[i]](0, i) for i in range(2 * self.bits // 3)]) == power
                 if modulo is not None:
                     assert modulo != 0
-                    return sum([aa[[i]](0, self ** i) for i in range(self.bits // 2)]) % modulo
-                return sum([aa[[i]](0, self ** i) for i in range(self.bits // 2)])
+                    return functools.reduce(operator.ior, [aa[[i]](0, self ** i) for i in range(2 * self.bits // 3)]) % modulo
+                return functools.reduce(operator.ior, [aa[[i]](0, self ** i) for i in range(2 * self.bits // 3)])
             else:
-                other = Entity(self.encoder, value=1)
+                other = Unit(self.encoder, value=1)
                 self.encoder.variables.append(other)
                 for _ in range(power):
                     other *= self
@@ -184,17 +186,17 @@ class Entity:
 
     def __truediv__(self, other):
         if self.value is not None:
-            if isinstance(other, Entity) and other.value is not None:
+            if isinstance(other, Unit) and other.value is not None:
                 if other.value == 0:
                     from math import nan
                     return nan
                 return self.value / other.value
         output_block = self.encoder.create_block()
-        if isinstance(other, Entity):
+        if isinstance(other, Unit):
             self.encoder.bv_lud_gate(self.block, other.block, output_block, self.encoder.zero.block)
         else:
             self.encoder.bv_lud_gate(self.block, self.encoder.create_constant(other), output_block, self.encoder.zero.block)
-        entity = Entity(self.encoder, block=output_block)
+        entity = Unit(self.encoder, block=output_block)
         self.encoder.variables.append(entity)
         return entity
 
@@ -206,16 +208,16 @@ class Entity:
             self.constraint += other.constraint
             return self
         if self.value is not None:
-            if isinstance(other, Entity):
+            if isinstance(other, Unit):
                 return self.value - other.value
             else:
                 return self.value - other
         output_block = self.encoder.create_block()
-        if isinstance(other, Entity):
+        if isinstance(other, Unit):
             output_block = self.encoder.bv_rcs_gate(self.block, other.block, output_block)
         else:
             output_block = self.encoder.bv_rcs_gate(self.block, self.encoder.create_constant(other), output_block)
-        entity = Entity(self.encoder, block=output_block)
+        entity = Unit(self.encoder, block=output_block)
         self.encoder.variables.append(entity)
         return entity
 
@@ -224,11 +226,11 @@ class Entity:
 
     def __lt__(self, other):
         if self.value is not None:
-            if isinstance(other, Entity) and other.value is not None:
+            if isinstance(other, Unit) and other.value is not None:
                 return self.value < other.value
             else:
                 return self.value < other
-        if isinstance(other, Entity):
+        if isinstance(other, Unit):
             self.encoder.bv_sle_gate(other.block, self.block, self.encoder.true)
         else:
             self.encoder.bv_sle_gate(self.encoder.create_constant(other), self.block, self.encoder.true)
@@ -247,11 +249,11 @@ class Entity:
 
     def __gt__(self, other):
         if self.value is not None:
-            if isinstance(other, Entity):
+            if isinstance(other, Unit):
                 return self.value > other.value
             else:
                 return self.value > other
-        if isinstance(other, Entity):
+        if isinstance(other, Unit):
             return self.encoder.bv_sle_gate(self.block, other.block, self.encoder.true)
         else:
             return self.encoder.bv_sle_gate(self.block, self.encoder.create_constant(other), self.encoder.true)
@@ -272,7 +274,7 @@ class Entity:
             self.value = -self.value
         if self.value is not None:
             return -self.value
-        entity = Entity(self.encoder, block=[-b for b in self.block]) + self.encoder.one
+        entity = Unit(self.encoder, block=[-b for b in self.block]) + self.encoder.one
         self.encoder.variables.append(entity)
         return entity
 
@@ -286,57 +288,55 @@ class Entity:
 
     def __and__(self, other):
         if self.value is not None:
-            if isinstance(other, Entity):
+            if isinstance(other, Unit):
                 return self.value & other.value
             else:
                 return self.value & other
-        if isinstance(other, Entity):
+        if isinstance(other, Unit):
             output_block = self.encoder.bv_and_gate(self.block, other.block)
         else:
-            output_block = self.encoder.bv_and_gate(self.block,
-                                                    self.encoder.create_constant(
-                                                        other))
-        entity = Entity(self.encoder, block=output_block)
+            output_block = self.encoder.bv_and_gate(self.block, self.encoder.create_constant(other))
+        entity = Unit(self.encoder, block=output_block)
         self.encoder.variables.append(entity)
         return entity
 
     def __or__(self, other):
         if self.value is not None:
-            if isinstance(other, Entity):
+            if isinstance(other, Unit):
                 return self.value | other.value
             else:
                 return self.value | other
-        if isinstance(other, Entity):
+        if isinstance(other, Unit):
             output_block = self.encoder.bv_or_gate(self.block, other.block)
         else:
             output_block = self.encoder.bv_or_gate(self.block, self.encoder.create_constant(other))
-        entity = Entity(self.encoder, block=output_block)
+        entity = Unit(self.encoder, block=output_block)
         self.encoder.variables.append(entity)
         return entity
 
     def __xor__(self, other):
         if self.value is not None:
-            if isinstance(other, Entity):
+            if isinstance(other, Unit):
                 return self.value ^ other.value
             else:
                 return self.value ^ other
-        if isinstance(other, Entity):
+        if isinstance(other, Unit):
             output_block = self.encoder.bv_xor_gate(self.block, other.block)
         else:
             output_block = self.encoder.bv_xor_gate(self.block, self.encoder.create_constant(other))
-        entity = Entity(self.encoder, block=output_block)
+        entity = Unit(self.encoder, block=output_block)
         self.encoder.variables.append(entity)
         return entity
 
     def __lshift__(self, other):
-        if isinstance(other, Entity):
+        if isinstance(other, Unit):
             assert 0 < other
         y = 2 * other
         x = self * y
         return x
 
     def __rshift__(self, other):
-        if isinstance(other, Entity):
+        if isinstance(other, Unit):
             assert 0 < other
         y = 2 * other
         x = self / y
@@ -344,25 +344,25 @@ class Entity:
 
     def iff(self, bit, other):
         if self.value is not None:
-            if isinstance(other, Entity):
+            if isinstance(other, Unit):
                 return self.value if bit else other.value
             else:
                 return self.value if bit else other
-        if isinstance(bit, Entity):
+        if isinstance(bit, Unit):
             import functools
             import operator
-            if isinstance(other, Entity):
+            if isinstance(other, Unit):
                 return self.iff(functools.reduce(operator.and_, [self.encoder.zero.iff(bit[j], self.encoder.one) for j in range(self.encoder.bits)])[0], other)
             else:
                 return self.iff(functools.reduce(operator.and_, [self.encoder.zero.iff(bit[j], self.encoder.one) for j in range(self.encoder.bits)])[0], self.encoder.create_constant(other))
-        if isinstance(other, Entity):
+        if isinstance(other, Unit):
             output_block = self.encoder.bv_mux_gate(self.block, other.block, bit)
-            entity = Entity(self.encoder, block=output_block)
+            entity = Unit(self.encoder, block=output_block)
             self.encoder.variables.append(entity)
             return entity
         else:
             output_block = self.encoder.bv_mux_gate(self.block, self.encoder.create_constant(other), bit)
-            entity = Entity(self.encoder, block=output_block)
+            entity = Unit(self.encoder, block=output_block)
             self.encoder.variables.append(entity)
             return entity
 
@@ -372,7 +372,7 @@ class Entity:
         bb = self.data[:]
         for i in item:
             bb = bb[i]
-        return lambda a, b: (a if isinstance(a, Entity) else self.encoder.int(value=a)).iff(-bb, (b if isinstance(b, Entity) else self.encoder.int(value=b)))
+        return lambda a, b: (a if isinstance(a, Unit) else self.encoder.int(value=a)).iff(-bb, (b if isinstance(b, Unit) else self.encoder.int(value=b)))
 
     @property
     def binary(self):
@@ -408,7 +408,7 @@ class Entity:
 
     def reverse(self, copy=False):
         if copy:
-            entity = Entity(self.encoder, block=self.block[::-1])
+            entity = Unit(self.encoder, block=self.block[::-1])
             self.encoder.variables.append(entity)
             return entity
         else:

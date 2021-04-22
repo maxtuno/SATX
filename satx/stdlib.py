@@ -26,7 +26,7 @@ The standard high level library for the SAT-X system.
 from .gaussian import Gaussian
 from .linear import Linear
 from .rational import Rational
-from .solver import *
+from .alu import *
 
 csp = None
 
@@ -53,7 +53,7 @@ def engine(bits=None, info=False):
     :param info: Print the information about the system.
     """
     global csp
-    csp = CSP(0 if not bits else bits)
+    csp = ALU(0 if not bits else bits)
     if info:
         version()
 

@@ -39,7 +39,7 @@ ext_modules = [
 ]
 setup(
     name='SATX',
-    version='0.1.0',
+    version='0.1.1',
     packages=['satx'],
     url='http://www.peqnp.com',
     license='copyright (c) 2012-2021 Oscar Riveros. All rights reserved.',
