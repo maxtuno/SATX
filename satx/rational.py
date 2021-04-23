@@ -26,13 +26,13 @@ class Rational:
     def __init__(self, x, y):
         self.numerator = x
         self.denominator = y
-        assert self.denominator != self.denominator.encoder.zero
+        assert self.denominator != self.denominator.alu.zero
 
     def __eq__(self, other):
-        c = Unit(self.numerator.encoder)
+        c = Unit(self.numerator.alu)
         if isinstance(other, Unit):
             assert self.numerator == c * other
-            assert self.denominator == c * self.denominator.encoder.one
+            assert self.denominator == c * self.denominator.alu.one
         else:
             assert self.numerator == c * other.numerator
             assert self.denominator == c * other.denominator

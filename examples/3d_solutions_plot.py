@@ -9,10 +9,18 @@ z = satx.integer()
 
 assert x ** 3 == y + z ** 5
 
+x = satx.one_of([-x, x])
+y = satx.one_of([-y, y])
+z = satx.one_of([-z, z])
+
 ss = []
 while satx.satisfy():
-    print(x, y, z)
-    ss.append((x.value, y.value, z.value))
+    if x ** 3 == y + z ** 5:
+        print(x, y, z)
+        ss.append((x.value, y.value, z.value))
+    else:
+        # print('ERROR: Currently there are values, which are related to the overflow of the values compiled to CNF, the objective is to solve this problem in future versions.')
+        pass
 
 xs, ys, zs = zip(*ss)
 

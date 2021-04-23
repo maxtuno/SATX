@@ -33,7 +33,7 @@ class Gaussian:
         return True
 
     def __ne__(self, other):
-        bit = Unit(self.real.encoder, bits=2)
+        bit = Unit(self.real.alu, bits=2)
         assert (self.real - other.real).iff(bit[0], self.imag - other.imag) != 0
         return True
 
@@ -63,7 +63,7 @@ class Gaussian:
         return other
 
     def __abs__(self):
-        return Gaussian(self.real.encoder.sqrt(self.real ** 2 + self.imag ** 2), 0)
+        return Gaussian(self.real.alu.sqrt(self.real ** 2 + self.imag ** 2), 0)
 
     def __repr__(self):
         return '({}+{}j)'.format(self.real, self.imag)
