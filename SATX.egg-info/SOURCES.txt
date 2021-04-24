@@ -29,6 +29,7 @@ mtl/XAlloc.h
 satx/__init__.py
 satx/alu.py
 satx/gaussian.py
+satx/gcc.py
 satx/linear.py
 satx/rational.py
 satx/stdlib.py
