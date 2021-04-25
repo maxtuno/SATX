@@ -82,6 +82,8 @@ def gcd(x, y, z):
     """
     Enforce the fact that 𝚉 is the greatest common divisor of 𝚇 and 𝚈. (assume X <= Y)
     """
+    if not isinstance(y, satx.Unit):
+        y = satx.constant(y)
     assert 0 < x <= y
     assert z > 0
     assert z == y % x
@@ -95,3 +97,13 @@ def sort(lst1, lst2):
     _, ys = satx.permutations(lst1, len(lst1))
     satx.apply_single(lst2, lambda i, t: t == ys[i], indexed=True)
     satx.apply_dual(lst2, lambda a, b: a <= b)
+
+
+def sort_permutation(lst_from, lst_per, lst_to):
+    """
+    The variables of collection 𝙵𝚁𝙾𝙼 correspond to the variables of collection 𝚃𝙾 according to the permutation 𝙿𝙴𝚁𝙼𝚄𝚃𝙰𝚃𝙸𝙾𝙽 (i.e., 𝙵𝚁𝙾𝙼[i].𝚟𝚊𝚛=𝚃𝙾[𝙿𝙴𝚁𝙼𝚄𝚃𝙰𝚃𝙸𝙾𝙽[i].𝚟𝚊𝚛].𝚟𝚊𝚛). The variables of collection 𝚃𝙾 are also sorted in increasing order.
+    """
+    satx.apply_dual(lst_to, lambda a, b: a <= b)
+    xs1, ys1 = satx.permutations(lst_from, len(lst_from))
+    assert ys1 == lst_to
+    assert lst_per == xs1
