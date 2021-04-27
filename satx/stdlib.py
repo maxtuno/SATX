@@ -29,6 +29,7 @@ from .rational import Rational
 from .alu import *
 
 csp = None
+render = False
 
 
 def version():
@@ -46,14 +47,15 @@ def check_engine():
         exit(0)
 
 
-def engine(bits=None, info=False):
+def engine(bits=None, info=False, cnf=''):
     """
     Initialize or reset the SAT-X system.
     :param bits: Implies an $[-2^{bits}, 2^{bits})$ search space.
     :param info: Print the information about the system.
+    :param cnf: Path to render the generated CNF.
     """
     global csp
-    csp = ALU(0 if not bits else bits)
+    csp = ALU(0 if not bits else bits, cnf)
     if info:
         version()
 
@@ -933,3 +935,56 @@ def is_not_prime(p):
     check_engine()
     assert p != csp.one + csp.one
     assert pow(csp.one + csp.one, p, p) != csp.one + csp.one
+
+
+def external_satisfy(solver, params=''):
+    """
+    Solve with external solver.
+    :param solver: The external solver.
+    :param params: Parameters passed to external solver.
+    :return: True if SAT else False.
+    """
+    global csp, render
+    import subprocess
+    check_engine()
+    if csp.cnf == '':
+        raise Exception('CNF path not set.')
+    if not render:
+        render = True
+        csp.cnf_file.close()
+    if '.' not in csp.cnf:
+        raise Exception('CNF has no extension.')
+    key = csp.cnf[:csp.cnf.index('.')]
+    subprocess.call('{0} {2} {1}.cnf > {1}.mod'.format(solver, key, params), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    with open('{}.mod'.format(key), 'r') as mod:
+        lines = ''
+        for line in mod.readlines():
+            if line.startswith('v '):
+                lines += line.strip('v ').strip('\n') + ' '
+        if len(lines) > 0:
+            model = list(map(int, lines.strip(' ').split(' ')))
+            for key, value in csp.map.items():
+                for arg in csp.variables:
+                    if isinstance(arg, Unit) and arg.key == key:
+                        ds = ''.join(map(str, [int(int(model[abs(bit) - 1]) > 0) for bit in value[::-1]]))
+                        if ds[0] == '1':
+                            arg.value = -int(''.join(['0' if d == '1' else '1' for d in ds[1:]]), 2) - 1
+                        else:
+                            arg.value = int(ds[1:], 2)
+                        del arg.bin[:]
+            with open(csp.cnf, 'a') as file:
+                file.write(' '.join([str(-int(literal)) for literal in model]) + '\n')
+            return True
+    return False
+
+
+def external_reset():
+    global csp, render
+    """
+    Use this with external_satisfy on optimization rutines.
+    :param key: key of the external_satisfy problem
+    :return:
+    """
+    import os
+    os.remove(csp.cnf)
+    render = False

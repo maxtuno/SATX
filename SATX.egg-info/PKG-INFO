@@ -1,8 +1,8 @@
 Metadata-Version: 1.0
 Name: SATX
-Version: 0.1.5
+Version: 0.1.6
 Summary: PEQNP Mathematical Solver from http://www.peqnp.com
-Home-page: http://www.peqnp.com
+Home-page: http://www.sat-x.io
 Author: Oscar Riveros
 Author-email: contact@peqnp.com
 License: copyright (c) 2012-2021 Oscar Riveros. All rights reserved.

@@ -39,9 +39,9 @@ ext_modules = [
 ]
 setup(
     name='SATX',
-    version='0.1.5',
+    version='0.1.6',
     packages=['satx'],
-    url='http://www.peqnp.com',
+    url='http://www.sat-x.io',
     license='copyright (c) 2012-2021 Oscar Riveros. All rights reserved.',
     author='Oscar Riveros',
     author_email='contact@peqnp.com',

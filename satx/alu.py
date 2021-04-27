@@ -25,11 +25,14 @@ from satx.unit import Unit
 
 
 class ALU:
-    def __init__(self, bits=None):
+    def __init__(self, bits=None, cnf=''):
         import sys
         slime.reset()
         pixie.reset()
         sys.setrecursionlimit(1 << 16)
+        self.cnf = cnf
+        if cnf != '':
+            self.cnf_file = open(cnf, 'w+')
         self.mips = []
         self.variables = []
         self.map = {}
@@ -102,9 +105,11 @@ class ALU:
         self.number_of_variables += 1
         return self.number_of_variables
 
-    @staticmethod
-    def add_block(clause):
-        slime.add_clause(sorted(set(clause), key=abs))
+    def add_block(self, clause):
+        clause = sorted(set(clause), key=abs)
+        slime.add_clause(clause)
+        if self.cnf != '':
+            self.cnf_file.write(' '.join(list(map(str, clause))) + ' 0\n')
         return clause
 
     def mapping(self, key, value):
