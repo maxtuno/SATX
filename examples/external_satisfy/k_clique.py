@@ -21,8 +21,8 @@ def load_file(file_name):
 
 if __name__ == '__main__':
 
-    # python3 k_clique.py frb30-15-5.clq 30 > k_clique.sol
-    # ./k_clique_validator frb30-15-1.clq k_clique.sol
+    # python3 k_clique.py graph.txt 10 > graph.sol
+    # ./k_clique_validator graph.txt graph.sol
 
     n, adj = load_file(sys.argv[1])
     k = int(sys.argv[2])

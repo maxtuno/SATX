@@ -1,8 +1,6 @@
 # SAT-X EXTERNAL SATISFY EXAMPLES
 
-A pure CNF encoder functionality, you can use with any solver that support the standard output of SAT Races *.
-
-*) The solver is required to accept relaxed inputs, that is, no CNF header.
+A pure CNF encoder functionality, you can use with any solver that support the standard output of SAT Races, for online use with Jupyter Notebooks use the standard mode http://www.peqnp.com.
 
 # BLUE
  A Powerful and Portable SAT Solver for Java https://github.com/maxtuno/blue

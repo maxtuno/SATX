@@ -20,7 +20,7 @@ for i in range(m - 1):
     assert r[i + 1] == satx.one_of([r[i] + rr[i], r[i] - rr[i]])
     assert cc[i] != rr[i]
 
-if satx.external_satisfy(solver='java -jar -Xmx4g blue.jar'):
+if satx.external_satisfy(solver='slime'):
     c = numpy.vectorize(int)(c) - 1
     r = numpy.vectorize(int)(r) - 1
     t = numpy.zeros(shape=(n, n), dtype=int)
