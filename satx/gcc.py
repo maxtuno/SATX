@@ -23,12 +23,12 @@ def all_differ_from_at_least_k_pos(k, lst):
         nil1.is_not_in(V)
         nil2.is_not_in(V)
     assert nil1 != nil2
-    T = satx.tensor(dimensions=(len(lst[0]),))
-    assert sum(T[[i]](0, 1) for i in range(len(lst[0]))) >= k
+    t = satx.tensor(dimensions=(len(lst[0]),))
+    assert sum(t[[i]](0, 1) for i in range(len(lst[0]))) >= k
     for i1 in range(len(lst) - 1):
         for i2 in range(i1 + 1, len(lst)):
             for j in range(len(lst[0])):
-                assert T[[j]](nil1, lst[i1][j]) != T[[j]](nil2, lst[i2][j])
+                assert t[[j]](nil1, lst[i1][j]) != t[[j]](nil2, lst[i2][j])
 
 
 def all_differ_from_at_most_k_pos(k, lst):
@@ -41,12 +41,12 @@ def all_differ_from_at_most_k_pos(k, lst):
         nil1.is_not_in(V)
         nil2.is_not_in(V)
     assert nil1 == nil2
-    T = satx.tensor(dimensions=(len(lst[0]),))
-    assert sum(T[[i]](0, 1) for i in range(len(lst[0]))) >= len(lst[0]) - k
+    t = satx.tensor(dimensions=(len(lst[0]),))
+    assert sum(t[[i]](0, 1) for i in range(len(lst[0]))) >= len(lst[0]) - k
     for i1 in range(len(lst) - 1):
         for i2 in range(i1 + 1, len(lst)):
             for j in range(len(lst[0])):
-                assert T[[j]](nil1, lst[i1][j]) == T[[j]](nil2, lst[i2][j])
+                assert t[[j]](nil1, lst[i1][j]) == t[[j]](nil2, lst[i2][j])
 
 
 def all_differ_from_exactly_k_pos(k, lst):
@@ -107,3 +107,13 @@ def sort_permutation(lst_from, lst_per, lst_to):
     xs1, ys1 = satx.permutations(lst_from, len(lst_from))
     assert ys1 == lst_to
     assert lst_per == xs1
+
+
+def count(val, lst, rel, lim):
+    """
+    Let N be the number of variables of the 𝚅𝙰𝚁𝙸𝙰𝙱𝙻𝙴𝚂 collection assigned to value 𝚅𝙰𝙻𝚄𝙴; Enforce condition N 𝚁𝙴𝙻𝙾𝙿 𝙻𝙸𝙼𝙸𝚃 to hold.
+    """
+    t = satx.tensor(dimensions=(len(lst),))
+    for i in range(len(lst)):
+        assert t[[i]](0, lst[i] - val) == 0
+    assert rel(sum(t[[i]](0, 1) for i in range(len(lst))), lim)
