@@ -107,9 +107,10 @@ class ALU:
 
     def add_block(self, clause):
         clause = sorted(set(clause), key=abs)
-        slime.add_clause(clause)
         if self.cnf != '':
             self.cnf_file.write(' '.join(list(map(str, clause))) + ' 0\n')
+        else:
+            slime.add_clause(clause)
         return clause
 
     def mapping(self, key, value):

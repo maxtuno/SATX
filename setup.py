@@ -39,7 +39,7 @@ ext_modules = [
 ]
 setup(
     name='SATX',
-    version='0.1.6',
+    version='0.1.7',
     packages=['satx'],
     url='http://www.sat-x.io',
     license='copyright (c) 2012-2021 Oscar Riveros. All rights reserved.',

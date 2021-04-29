@@ -972,6 +972,8 @@ def external_satisfy(solver, params=''):
                         else:
                             arg.value = int(ds[1:], 2)
                         del arg.bin[:]
+            if not csp.cnf_file.closed:
+                csp.cnf_file.close()
             with open(csp.cnf, 'a') as file:
                 file.write(' '.join([str(-int(literal)) for literal in model]) + '\n')
             return True
