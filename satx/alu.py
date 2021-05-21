@@ -1,7 +1,7 @@
 """
 ///////////////////////////////////////////////////////////////////////////////
 //        Copyright (c) 2012-2021 Oscar Riveros. all rights reserved.        //
-//                        oscar.riveros@peqnp.science                        //
+//                        oscar.riveros@satx.science                        //
 //                                                                           //
 //   without any restriction, Oscar Riveros reserved rights, patents and     //
 //  commercialization of this knowledge or derived directly from this work.  //
@@ -19,8 +19,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-import slime
 import pixie
+import slime
+
 from satx.unit import Unit
 
 
@@ -111,6 +112,7 @@ class ALU:
             self.cnf_file.write(' '.join(list(map(str, clause))) + ' 0\n')
         else:
             slime.add_clause(clause)
+        self.number_of_clauses += 1
         return clause
 
     def mapping(self, key, value):
@@ -423,19 +425,26 @@ class ALU:
         if model:
             for key, value in self.map.items():
                 for arg in self.variables:
-                    if isinstance(arg, Unit) and arg.key == key:
-                        ds = ''.join(map(str, [int(int(model[abs(bit) - 1]) > 0) for bit in value[::-1]]))
+                    ds = ''.join(map(str, [int(int(model[abs(bit) - 1]) > 0) for bit in value[::-1]]))
+                    if arg.signed and arg.key == key:
                         if ds[0] == '1':
                             arg.value = -int(''.join(['0' if d == '1' else '1' for d in ds[1:]]), 2) - 1
                         else:
                             arg.value = int(ds[1:], 2)
+                        del arg.bin[:]
+                    if not arg.signed and arg.key == key:
+                        ds = ''.join(map(str, [int(int(model[abs(bit) - 1]) > 0) for bit in value[::-1]]))
+                        arg.value = int(ds, 2)
                         del arg.bin[:]
             self.add_block([-lit for lit in model])
             return True
         return False
 
     def int(self, key=None, block=None, value=None, size=None, deep=None, is_mip=False, is_real=False):
-        return Unit(self, key=key, block=block, value=value, bits=size, deep=deep, is_mip=is_mip, is_real=is_real)
+        return Unit(self, signed=True, key=key, block=block, value=value, bits=size, deep=deep, is_mip=is_mip, is_real=is_real)
+
+    def nat(self, key=None, block=None, value=None, size=None, deep=None, is_mip=False, is_real=False):
+        return Unit(self, signed=False, key=key, block=block, value=value, bits=size, deep=deep, is_mip=is_mip, is_real=is_real)
 
     def array(self, dimension, size=None, key=None):
         if size is not None:

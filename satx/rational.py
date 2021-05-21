@@ -1,7 +1,7 @@
 """
 ///////////////////////////////////////////////////////////////////////////////
 //        Copyright (c) 2012-2021 Oscar Riveros. all rights reserved.        //
-//                        oscar.riveros@peqnp.science                        //
+//                        oscar.riveros@satx.science                        //
 //                                                                           //
 //   without any restriction, Oscar Riveros reserved rights, patents and     //
 //  commercialization of this knowledge or derived directly from this work.  //

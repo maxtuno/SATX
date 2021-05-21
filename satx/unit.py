@@ -1,7 +1,7 @@
 """
 ///////////////////////////////////////////////////////////////////////////////
 //        Copyright (c) 2012-2021 Oscar Riveros. all rights reserved.        //
-//                        oscar.riveros@peqnp.science                        //
+//                        oscar.riveros@satx.science                        //
 //                                                                           //
 //   without any restriction, Oscar Riveros reserved rights, patents and     //
 //  commercialization of this knowledge or derived directly from this work.  //
@@ -18,10 +18,12 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+from numbers import Number
 
 
-class Unit:
-    def __init__(self, alu, key=None, block=None, value=None, bits=None, deep=None, is_mip=False, is_real=False):
+class Unit(Number):
+    def __init__(self, alu, signed=True, key=None, block=None, value=None, bits=None, deep=None, is_mip=False, is_real=False):
+        self.signed = signed
         self.key = key
         self.model = []
         self.block = block
@@ -91,7 +93,7 @@ class Unit:
                 self.alu.bv_rcs_gate(self.block, self.alu.create_constant(-other), output_block)
             else:
                 self.alu.bv_rca_gate(self.block, self.alu.create_constant(other), self.alu.true, output_block, self.alu.true)
-        entity = Unit(self.alu, block=output_block)
+        entity = Unit(self.alu, signed=self.signed, block=output_block)
         self.alu.variables.append(entity)
         return entity
 
@@ -126,7 +128,7 @@ class Unit:
             self.alu.bv_lur_gate(self.block, other.block, output_block)
         else:
             self.alu.bv_lur_gate(self.block, self.alu.create_constant(other), output_block)
-        entity = Unit(self.alu, block=output_block)
+        entity = Unit(self.alu, signed=self.signed, block=output_block)
         self.alu.variables.append(entity)
         return entity
 
@@ -149,7 +151,7 @@ class Unit:
             self.alu.bv_pm_gate(self.block, other.block, output_block, self.alu.true)
         else:
             self.alu.bv_pm_gate(self.block, self.alu.create_constant(other), output_block, self.alu.true)
-        entity = Unit(self.alu, block=output_block)
+        entity = Unit(self.alu, signed=self.signed, block=output_block)
         self.alu.variables.append(entity)
         return entity
 
@@ -167,7 +169,7 @@ class Unit:
             if isinstance(power, Unit):
                 import functools
                 import operator
-                aa = Unit(self.alu, bits=2 * self.bits // 3)
+                aa = Unit(self.alu, signed=self.signed, bits=2 * self.bits // 3)
                 self.alu.variables.append(aa)
                 assert functools.reduce(operator.add, [aa[[i]](0, 1) for i in range(2 * self.bits // 3)]) == self.alu.one
                 assert functools.reduce(operator.ior, [aa[[i]](0, i) for i in range(2 * self.bits // 3)]) == power
@@ -176,7 +178,7 @@ class Unit:
                     return functools.reduce(operator.ior, [aa[[i]](0, self ** i) for i in range(2 * self.bits // 3)]) % modulo
                 return functools.reduce(operator.ior, [aa[[i]](0, self ** i) for i in range(2 * self.bits // 3)])
             else:
-                other = Unit(self.alu, value=1)
+                other = Unit(self.alu, signed=self.signed, value=1)
                 self.alu.variables.append(other)
                 for _ in range(power):
                     other *= self
@@ -196,7 +198,7 @@ class Unit:
             self.alu.bv_lud_gate(self.block, other.block, output_block, self.alu.zero.block)
         else:
             self.alu.bv_lud_gate(self.block, self.alu.create_constant(other), output_block, self.alu.zero.block)
-        entity = Unit(self.alu, block=output_block)
+        entity = Unit(self.alu, signed=self.signed, block=output_block)
         self.alu.variables.append(entity)
         return entity
 
@@ -217,7 +219,7 @@ class Unit:
             output_block = self.alu.bv_rcs_gate(self.block, other.block, output_block)
         else:
             output_block = self.alu.bv_rcs_gate(self.block, self.alu.create_constant(other), output_block)
-        entity = Unit(self.alu, block=output_block)
+        entity = Unit(self.alu, signed=self.signed, block=output_block)
         self.alu.variables.append(entity)
         return entity
 
@@ -231,9 +233,15 @@ class Unit:
             else:
                 return self.value < other
         if isinstance(other, Unit):
-            self.alu.bv_sle_gate(other.block, self.block, self.alu.true)
+            if self.signed:
+                self.alu.bv_sle_gate(other.block, self.block, self.alu.true)
+            else:
+                self.alu.bv_ule_gate(other.block, self.block, self.alu.true)
         else:
-            self.alu.bv_sle_gate(self.alu.create_constant(other), self.block, self.alu.true)
+            if self.signed:
+                self.alu.bv_sle_gate(self.alu.create_constant(other), self.block, self.alu.true)
+            else:
+                self.alu.bv_ule_gate(self.alu.create_constant(other), self.block, self.alu.true)
         return self
 
     def __le__(self, other):
@@ -254,9 +262,15 @@ class Unit:
             else:
                 return self.value > other
         if isinstance(other, Unit):
-            self.alu.bv_sle_gate(self.block, other.block, self.alu.true)
+            if self.signed:
+                self.alu.bv_sle_gate(self.block, other.block, self.alu.true)
+            else:
+                self.alu.bv_ule_gate(self.block, other.block, self.alu.true)
         else:
-            self.alu.bv_sle_gate(self.block, self.alu.create_constant(other), self.alu.true)
+            if self.signed:
+                self.alu.bv_sle_gate(self.block, self.alu.create_constant(other), self.alu.true)
+            else:
+                self.alu.bv_ule_gate(self.block, self.alu.create_constant(other), self.alu.true)
         return self
 
     def __ge__(self, other):
@@ -275,7 +289,7 @@ class Unit:
             self.value = -self.value
         if self.value is not None:
             return -self.value
-        entity = Unit(self.alu, block=[-b for b in self.block]) + self.alu.one
+        entity = Unit(self.alu, signed=self.signed, block=[-b for b in self.block]) + self.alu.one
         self.alu.variables.append(entity)
         return entity
 
@@ -297,7 +311,7 @@ class Unit:
             output_block = self.alu.bv_and_gate(self.block, other.block)
         else:
             output_block = self.alu.bv_and_gate(self.block, self.alu.create_constant(other))
-        entity = Unit(self.alu, block=output_block)
+        entity = Unit(self.alu, signed=self.signed, block=output_block)
         self.alu.variables.append(entity)
         return entity
 
@@ -311,7 +325,7 @@ class Unit:
             output_block = self.alu.bv_or_gate(self.block, other.block)
         else:
             output_block = self.alu.bv_or_gate(self.block, self.alu.create_constant(other))
-        entity = Unit(self.alu, block=output_block)
+        entity = Unit(self.alu, signed=self.signed, block=output_block)
         self.alu.variables.append(entity)
         return entity
 
@@ -325,7 +339,7 @@ class Unit:
             output_block = self.alu.bv_xor_gate(self.block, other.block)
         else:
             output_block = self.alu.bv_xor_gate(self.block, self.alu.create_constant(other))
-        entity = Unit(self.alu, block=output_block)
+        entity = Unit(self.alu, signed=self.signed, block=output_block)
         self.alu.variables.append(entity)
         return entity
 
@@ -358,12 +372,12 @@ class Unit:
                 return self.iff(functools.reduce(operator.and_, [self.alu.zero.iff(bit[j], self.alu.one) for j in range(self.alu.bits)])[0], self.alu.create_constant(other))
         if isinstance(other, Unit):
             output_block = self.alu.bv_mux_gate(self.block, other.block, bit)
-            entity = Unit(self.alu, block=output_block)
+            entity = Unit(self.alu, signed=self.signed, block=output_block)
             self.alu.variables.append(entity)
             return entity
         else:
             output_block = self.alu.bv_mux_gate(self.block, self.alu.create_constant(other), bit)
-            entity = Unit(self.alu, block=output_block)
+            entity = Unit(self.alu, signed=self.signed, block=output_block)
             self.alu.variables.append(entity)
             return entity
 
@@ -373,7 +387,7 @@ class Unit:
         bb = self.data[:]
         for i in item:
             bb = bb[i]
-        return lambda a, b: (a if isinstance(a, Unit) else self.alu.int(value=a)).iff(-bb, (b if isinstance(b, Unit) else self.alu.int(value=b)))
+        return lambda a, b: (a if isinstance(a, Unit) else (self.alu.int(value=a) if a < 0 else self.alu.nat(value=a))).iff(-bb, (b if isinstance(b, Unit) else (self.alu.int(value=b) if b < 0 else self.alu.nat(value=b))))
 
     @property
     def binary(self):
@@ -409,7 +423,7 @@ class Unit:
 
     def reverse(self, copy=False):
         if copy:
-            entity = Unit(self.alu, block=self.block[::-1])
+            entity = Unit(self.alu, signed=self.signed, block=self.block[::-1])
             self.alu.variables.append(entity)
             return entity
         else:

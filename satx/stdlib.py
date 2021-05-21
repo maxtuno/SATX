@@ -1,7 +1,7 @@
 """
 ///////////////////////////////////////////////////////////////////////////////
 //        Copyright (c) 2012-2021 Oscar Riveros. all rights reserved.        //
-//                        oscar.riveros@peqnp.science                        //
+//                        oscar.riveros@satx.science                        //
 //                                                                           //
 //   without any restriction, Oscar Riveros reserved rights, patents and     //
 //  commercialization of this knowledge or derived directly from this work.  //
@@ -23,10 +23,10 @@ SOFTWARE.
 The standard high level library for the SAT-X system.
 """
 
+from .alu import *
 from .gaussian import Gaussian
 from .linear import Linear
 from .rational import Rational
-from .alu import *
 
 csp = None
 render = False
@@ -38,7 +38,7 @@ def version():
     """
     print('SAT-X Mathematical Solver from http://www.peqnp.com')
     print('Copyright (c) 2012-2021 Oscar Riveros. all rights reserved.')
-    print('oscar.riveros@peqnp.science')
+    print('oscar.riveros@satx.science')
 
 
 def check_engine():
@@ -84,6 +84,18 @@ def integer(bits=None):
     return csp.variables[-1]
 
 
+def natural(bits=None):
+    """
+    Correspond to an integer.
+    :param bits: The bits for the integer.
+    :return: An instance of Integer.
+    """
+    global csp
+    check_engine()
+    csp.variables.append(csp.nat(size=bits))
+    return csp.variables[-1]
+
+
 def constant(value, bits=None):
     """
     Correspond to an constant.
@@ -97,14 +109,14 @@ def constant(value, bits=None):
     return csp.variables[-1]
 
 
-def satisfy(turbo=False, log=False):
+def satisfy(solve=True, turbo=False, log=False, cnf_path=''):
     """
     Find a model for the current problem.
     :param turbo: This make a simplification of the model, is more fast to solve, but destroy the internal structure of the problem, need regenerate, use for only one solution.
     :param log: Show log for the SLIME SAT Solver.
     :return: True if SATISFIABLE else False
     """
-    return csp.to_sat(solve=True, turbo=turbo, log=log, assumptions=None, cnf_path='', model_path='', proof_path='')
+    return csp.to_sat(solve=solve, turbo=turbo, log=log, assumptions=None, cnf_path=cnf_path, model_path='', proof_path='')
 
 
 def subsets(lst, k=None, complement=False):
@@ -117,7 +129,7 @@ def subsets(lst, k=None, complement=False):
     """
     global csp
     check_engine()
-    bits = csp.int(size=len(lst))
+    bits = csp.nat(size=len(lst))
     csp.variables.append(bits)
     if k is not None:
         assert sum(csp.zero.iff(-bits[i], csp.one) for i in range(len(lst))) == k
@@ -571,7 +583,7 @@ def sqrt(x):
 
 # ///////////////////////////////////////////////////////////////////////////////
 # //        Copyright (c) 2012-2020 Oscar Riveros. all rights reserved.        //
-# //                        oscar.riveros@peqnp.science                        //
+# //                        oscar.riveros@satx.science                        //
 # //                                                                           //
 # //   without any restriction, Oscar Riveros reserved rights, patents and     //
 # //  commercialization of this knowledge or derived directly from this work.  //
@@ -642,7 +654,7 @@ def hess_sequence(n, oracle, fast=False, cycles=1, target=0):
 
 # ///////////////////////////////////////////////////////////////////////////////
 # //        Copyright (c) 2012-2020 Oscar Riveros. all rights reserved.        //
-# //                        oscar.riveros@peqnp.science                        //
+# //                        oscar.riveros@satx.science                        //
 # //                                                                           //
 # //   without any restriction, Oscar Riveros reserved rights, patents and     //
 # //  commercialization of this knowledge or derived directly from this work.  //
@@ -713,7 +725,7 @@ def hess_binary(n, oracle, fast=False, cycles=1, target=0):
 
 # ///////////////////////////////////////////////////////////////////////////////
 # //        Copyright (c) 2012-2020 Oscar Riveros. all rights reserved.        //
-# //                        oscar.riveros@peqnp.science                        //
+# //                        oscar.riveros@satx.science                        //
 # //                                                                           //
 # //   without any restriction, Oscar Riveros reserved rights, patents and     //
 # //  commercialization of this knowledge or derived directly from this work.  //
@@ -782,7 +794,7 @@ def hess_abstract(xs, oracle, f, g, log=None, fast=False, cycles=1, target=0):
 
 # ///////////////////////////////////////////////////////////////////////////////
 # //        Copyright (c) 2012-2020 Oscar Riveros. all rights reserved.        //
-# //                        oscar.riveros@peqnp.science                        //
+# //                        oscar.riveros@satx.science                        //
 # //                                                                           //
 # //   without any restriction, Oscar Riveros reserved rights, patents and     //
 # //  commercialization of this knowledge or derived directly from this work.  //
@@ -824,7 +836,7 @@ def tensor(dimensions):
     """
     global csp
     check_engine()
-    csp.variables.append(csp.int(size=None, deep=dimensions))
+    csp.variables.append(csp.nat(size=None, deep=dimensions))
     return csp.variables[-1]
 
 
@@ -949,12 +961,19 @@ def external_satisfy(solver, params=''):
     check_engine()
     if csp.cnf == '':
         raise Exception('CNF path not set.')
+    try:
+        key = csp.cnf[:csp.cnf.index('.')]
+    except Exception as ex:
+        print('No .cnf extension found. {}'.format(ex))
     if not render:
         render = True
-        csp.cnf_file.close()
+        csp.cnf_file = open(csp.cnf, 'r+')
+        header = 'p cnf {} {}'.format(csp.number_of_variables, csp.number_of_clauses)
+        content = csp.cnf_file.read()
+        csp.cnf_file.seek(0, 0)
+        csp.cnf_file.write(header.rstrip('\r\n') + '\n' + content)
     if '.' not in csp.cnf:
         raise Exception('CNF has no extension.')
-    key = csp.cnf[:csp.cnf.index('.')]
     subprocess.call('{0} {2} {1}.cnf > {1}.mod'.format(solver, key, params), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     with open('{}.mod'.format(key), 'r') as mod:
         lines = ''
@@ -965,15 +984,15 @@ def external_satisfy(solver, params=''):
             model = list(map(int, lines.strip(' ').split(' ')))
             for key, value in csp.map.items():
                 for arg in csp.variables:
-                    if isinstance(arg, Unit) and arg.key == key:
-                        ds = ''.join(map(str, [int(int(model[abs(bit) - 1]) > 0) for bit in value[::-1]]))
+                    ds = ''.join(map(str, [int(int(model[abs(bit) - 1]) > 0) for bit in value[::-1]]))
+                    if arg.signed and arg.key == key:
                         if ds[0] == '1':
                             arg.value = -int(''.join(['0' if d == '1' else '1' for d in ds[1:]]), 2) - 1
                         else:
                             arg.value = int(ds[1:], 2)
                         del arg.bin[:]
-            if not csp.cnf_file.closed:
-                csp.cnf_file.close()
+                    if not arg.signed and arg.key == key:
+                        arg.value = int(''.join(map(str, [int(int(model[abs(bit) - 1]) > 0) for bit in value[::-1]])), 2)
             with open(csp.cnf, 'a') as file:
                 file.write(' '.join([str(-int(literal)) for literal in model]) + '\n')
             return True
