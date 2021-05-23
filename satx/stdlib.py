@@ -86,9 +86,9 @@ def integer(bits=None):
 
 def natural(bits=None):
     """
-    Correspond to an integer.
-    :param bits: The bits for the integer.
-    :return: An instance of Integer.
+    Correspond to an unsigned integer.
+    :param bits: The bits for the unsigned integer.
+    :return: An instance of Unsigned Integer.
     """
     global csp
     check_engine()
@@ -165,11 +165,12 @@ def subset(lst, k, empty=None, complement=False):
     return subset_
 
 
-def vector(bits=None, size=None, is_gaussian=False, is_rational=False, is_mip=False, is_real=False):
+def vector(bits=None, size=None, signed=True, is_gaussian=False, is_rational=False, is_mip=False, is_real=False):
     """
     A vector of integers.
     :param bits: The bit bits for each integer.
     :param size: The bits of the vector.
+    :param signed: integer or natural components.
     :param is_gaussian: Indicate of is a Gaussian Integers vector.
     :param is_rational: Indicate of is a Rational vector.
     :param is_mip: Indicate of is a MIP vector.
@@ -179,25 +180,26 @@ def vector(bits=None, size=None, is_gaussian=False, is_rational=False, is_mip=Fa
     global csp
     check_engine()
     if is_rational:
-        return [rational() for _ in range(size)]
+        return [rational(signed=signed) for _ in range(size)]
     if is_gaussian:
-        return [gaussian() for _ in range(size)]
+        return [gaussian(signed=signed) for _ in range(size)]
     if is_mip:
         lns = []
         for _ in range(size):
             lns.append(linear(is_real=is_real))
         return lns
     else:
-        array_ = csp.array(size=bits, dimension=size)
+        array_ = csp.array(signed=signed, size=bits, dimension=size)
         csp.variables += array_
     return array_
 
 
-def matrix(bits=None, dimensions=None, is_gaussian=False, is_rational=False, is_mip=False, is_real=False):
+def matrix(bits=None, dimensions=None, signed=True, is_gaussian=False, is_rational=False, is_mip=False, is_real=False):
     """
     A matrix of integers.
     :param bits: The bit bits for each integer.
     :param dimensions: An tuple with the dimensions for the Matrix (n, m).
+    :param signed: integer or natural components.
     :param is_gaussian: Indicate of is a Gaussian Integers vector.
     :param is_rational: Indicate of is a Rational Matrix.
     :param is_mip: Indicate of is a MIP Matrix.
@@ -216,15 +218,30 @@ def matrix(bits=None, dimensions=None, is_gaussian=False, is_rational=False, is_
                 row.append(lns[-1])
             else:
                 if is_rational:
-                    x = integer(bits=bits)
-                    y = integer(bits=bits)
-                    csp.variables.append(rational(x, y))
+                    if signed:
+                        x = integer(bits=bits)
+                        y = integer(bits=bits)
+                    else:
+                        x = natural(bits=bits)
+                        y = natural(bits=bits)
+                    csp.variables.append(x)
+                    csp.variables.append(y)
+                    row.append(Rational(x, y))
                 elif is_gaussian:
-                    x = integer(bits=bits)
-                    y = integer(bits=bits)
-                    csp.variables.append(gaussian(x, y))
+                    if signed:
+                        x = integer(bits=bits)
+                        y = integer(bits=bits)
+                    else:
+                        x = natural(bits=bits)
+                        y = natural(bits=bits)
+                    csp.variables.append(x)
+                    csp.variables.append(y)
+                    row.append(Gaussian(x, y))
                 else:
-                    csp.variables.append(integer(bits=bits))
+                    if signed:
+                        csp.variables.append(integer(bits=bits))
+                    else:
+                        csp.variables.append(natural(bits=bits))
                 row.append(csp.variables[-1])
         matrix_.append(row)
     return matrix_
@@ -532,29 +549,39 @@ def index(ith, data):
     return csp.variables[-1]
 
 
-def gaussian(x=None, y=None):
+def gaussian(x=None, y=None, signed=True):
     """
     Create a gaussian integer from (x+yj).
     :param x: real
     :param y: imaginary
+    :param signed: integer or natural components, if x and y not provided.
     :return: (x+yj)
     """
     check_engine()
-    if x is None and y is None:
-        return Gaussian(integer(), integer())
+    if signed:
+        if x is None and y is None:
+            return Gaussian(integer(), integer())
+    else:
+        if x is None and y is None:
+            return Gaussian(natural(), natural())
     return Gaussian(x, y)
 
 
-def rational(x=None, y=None):
+def rational(x=None, y=None, signed=True):
     """
     Create a rational x / y.
     :param x: numerator
     :param y: denominator
+    :param signed: integer or natural components, if x and y not provided.
     :return: x / y
     """
     check_engine()
-    if x is None and y is None:
-        return Rational(integer(), integer())
+    if signed:
+        if x is None and y is None:
+            return Rational(integer(), integer())
+    else:
+        if x is None and y is None:
+            return Rational(natural(), natural())
     return Rational(x, y)
 
 

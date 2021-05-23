@@ -446,14 +446,15 @@ class ALU:
     def nat(self, key=None, block=None, value=None, size=None, deep=None, is_mip=False, is_real=False):
         return Unit(self, signed=False, key=key, block=block, value=value, bits=size, deep=deep, is_mip=is_mip, is_real=is_real)
 
-    def array(self, dimension, size=None, key=None):
-        if size is not None:
-            if key is not None:
-                return [self.int(key='{}_{}'.format(key, i), size=size) for i in range(dimension)]
-            return [self.int(size=size) for _ in range(dimension)]
-        if key is not None:
-            return [self.int(key='{}_{}'.format(key, i)) for i in range(dimension)]
-        return [self.int() for _ in range(dimension)]
+    def array(self, dimension, size=None, signed=True):
+        if signed:
+            if size is not None:
+                return [self.int(size=size) for _ in range(dimension)]
+            return [self.int() for _ in range(dimension)]
+        else:
+            if size is not None:
+                return [self.nat(size=size) for _ in range(dimension)]
+            return [self.nat() for _ in range(dimension)]
 
     def element(self, x, lst, y):
         idx = self.int(size=len(lst))
