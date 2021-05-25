@@ -615,7 +615,7 @@ def sqrt(x):
 # //   without any restriction, Oscar Riveros reserved rights, patents and     //
 # //  commercialization of this knowledge or derived directly from this work.  //
 # ///////////////////////////////////////////////////////////////////////////////
-def hess_sequence(n, oracle, fast=False, cycles=1, target=0):
+def hess_sequence(n, oracle, fast=False, cycles=1, target=0, seq=None):
     """
     HESS Algorithm is a Universal Black Box Optimizer (sequence version).
     :param n: The size of sequence.
@@ -623,9 +623,13 @@ def hess_sequence(n, oracle, fast=False, cycles=1, target=0):
     :param fast: More fast less accuracy.
     :param cycles: How many times the HESS algorithm is executed.
     :param target: Any value less than this terminates the execution.
+    :param seq: External sequence if not set default sequence is used (1..n)
     :return optimized sequence.
     """
-    xs = list(range(n))
+    if seq is not None:
+        xs = seq
+    else:
+        xs = list(range(n))
     glb = oracle(xs) + 1
     opt = xs[:]
 
@@ -686,7 +690,7 @@ def hess_sequence(n, oracle, fast=False, cycles=1, target=0):
 # //   without any restriction, Oscar Riveros reserved rights, patents and     //
 # //  commercialization of this knowledge or derived directly from this work.  //
 # ///////////////////////////////////////////////////////////////////////////////
-def hess_binary(n, oracle, fast=False, cycles=1, target=0):
+def hess_binary(n, oracle, fast=False, cycles=1, target=0, seq=None):
     """
     HESS Algorithm is a Universal Black Box Optimizer (binary version).
     :param n: The size of bit vector.
@@ -694,9 +698,13 @@ def hess_binary(n, oracle, fast=False, cycles=1, target=0):
     :param fast: More fast some times less accuracy.
     :param cycles: How many times the HESS algorithm is executed.
     :param target: Any value less than this terminates the execution.
+    :param seq: External sequence if not set default sequence is used (1..n)
     :return optimized sequence.
     """
-    xs = [False] * n
+    if seq is not None:
+        xs = seq
+    else:
+        xs = [False] * n
     glb = oracle(xs) + 1
     opt = xs[:]
 

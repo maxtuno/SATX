@@ -282,7 +282,13 @@ class Unit(Number):
             self.alu.add_constraint(self.constraint[:-2], self.constraint[-2], self.constraint[-1])
             del self.constraint[:]
             return True
-        return self.__gt__(other - 1)
+        if self.signed:
+            return self.__gt__(other - 1)
+        else:
+            if other > 0:        
+                return self.__gt__(other - 1)
+            else:
+                return self
 
     def __neg__(self):
         if self.is_mip:
