@@ -12,7 +12,7 @@ def parallelize(idx):
 
     assert x ** y - z ** 2 == 666
 
-    if satx.external_satisfy('slime', params='-massive'):
+    if satx.external_satisfy('./slime', params='-massive'):
         print(x, y, z)
         return x.value, y.value, z.value
     else:
