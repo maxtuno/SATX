@@ -47,18 +47,19 @@ def check_engine():
         exit(0)
 
 
-def engine(bits=None, info=False, cnf=''):
+def engine(bits=None, info=False, cnf='', render_by_slime=False):
     """
     Initialize or reset the SAT-X system.
     :param bits: Implies an $[-2^{bits}, 2^{bits})$ search space.
     :param info: Print the information about the system.
     :param cnf: Path to render the generated CNF.
+    :param render_by_slime: for render by slime on satisfy method with cnf_path.
     """
     global csp
-    csp = ALU(0 if not bits else bits, cnf)
+    csp = ALU(0 if not bits else bits, cnf, render_by_slime)
     if info:
         version()
-
+        
 
 def slime_cli(cnf_path, model_path='', proof_path=''):
     """

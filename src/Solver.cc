@@ -1758,9 +1758,10 @@ void Solver::toDimacs(const char *file, const vec<Lit> &assumps) {
 }
 
 void Solver::toDimacs(FILE *f, const vec<Lit> &assumps) {
-    fprintf(f, "c PEQNP - www.peqnp.com\n");
-    fprintf(f, "c contact@peqnp.science\n");
-    fprintf(f, "c pip install PEQNP\n");
+    fprintf(f, "c SAT-X\n");
+    fprintf(f, "c www.sat-x.io\n");
+    fprintf(f, "c oscar.riveros@peqnp.science\n");
+    fprintf(f, "c pip install satx\n");
 
     // Handle case when solver is in contradictory state:
     if (!ok) {

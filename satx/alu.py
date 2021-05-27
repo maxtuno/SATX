@@ -26,7 +26,7 @@ from satx.unit import Unit
 
 
 class ALU:
-    def __init__(self, bits=None, cnf=''):
+    def __init__(self, bits=None, cnf='', render_by_slime=False):
         import sys
         slime.reset()
         pixie.reset()
@@ -34,6 +34,7 @@ class ALU:
         self.cnf = cnf
         if cnf != '':
             self.cnf_file = open(cnf, 'w+')
+        self.render_by_slime = render_by_slime            
         self.mips = []
         self.variables = []
         self.map = {}
@@ -133,7 +134,10 @@ class ALU:
         if key is None:
             key = self.new_key()
         block = self.create_block(size)
-        self.add_block([self.false] + [-variable for variable in block])
+        if self.render_by_slime:
+            self.add_block([-variable for variable in block])
+        else:
+            self.add_block([self.false] + [-variable for variable in block])
         self.mapping(key, block)
         return key, block
 
@@ -420,8 +424,6 @@ class ALU:
                     if key.startswith('_'):
                         continue
                     self.maps[key] = [(1 if v > 0 else -1) * (abs(v) - 1) for v in value]
-                if len(self.maps) > 0:
-                    file.write('c {}\n'.format(self.maps))
         if model:
             for key, value in self.map.items():
                 for arg in self.variables:
