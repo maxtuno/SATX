@@ -6,8 +6,11 @@ SAT-X is a language for constrained optimization and decision problems over posi
 # Some excelent SAT Solvers
 
 1- https://github.com/maxtuno/SLIME (standalone and cloud [MPI] - Oscar Riveros)
+
 2- https://github.com/arminbiere/kissat (The Kissat SAT Solver - Armin Biere)
+
 3- https://github.com/maxtuno/MiniSat (MiniSat 2.2.0 with DRUP proof, CMake and StarExec Ready. -  Niklas Een, Niklas Sorensson)
+
 4- Any SAT Solver with the SAT Competition standars.
 
 
