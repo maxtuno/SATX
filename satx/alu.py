@@ -19,22 +19,16 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-import pixie
-import slime
-
 from satx.unit import Unit
 
 
 class ALU:
-    def __init__(self, bits=None, cnf='', render_by_slime=False):
+    def __init__(self, bits=None, cnf=''):
         import sys
-        slime.reset()
-        pixie.reset()
         sys.setrecursionlimit(1 << 16)
         self.cnf = cnf
         if cnf != '':
             self.cnf_file = open(cnf, 'w+')
-        self.render_by_slime = render_by_slime            
         self.mips = []
         self.variables = []
         self.map = {}
@@ -49,39 +43,6 @@ class ALU:
         self.false = -self.true
         self.constants = {}
         self.add_block([-self.true])
-
-    def add_constraint(self, l, c, r):
-        ll = len(self.mips) * [0]
-        for v in l:
-            ll[v.idx] = self.mips[v.idx].value
-            self.mips[v.idx].value = 1
-            del self.mips[v.idx].constraint[:]
-            self.mips[v.idx].constraint.append(v)
-        pixie.add_constraint(ll, c, r)
-        if isinstance(r, Unit):
-            r.value = 1
-            del r.constraint[:]
-            r.constraint.append(v)
-
-    @staticmethod
-    def set_integer_condition(c):
-        pixie.set_integer_condition(c)
-
-    def maximize(self, objective, solve, lp_path):
-        ll = len(self.mips) * [0]
-        for v in objective.constraint:
-            ll[v.idx] = self.mips[v.idx].value
-        pixie.add_objective(ll)
-        mips = pixie.maximize(solve, lp_path)
-        return pixie.optimal(), mips
-
-    def minimize(self, objective, solve, lp_path):
-        ll = len(self.mips) * [0]
-        for v in objective.constraint:
-            ll[v.idx] = self.mips[v.idx].value
-        pixie.add_objective([-d for d in ll])
-        mips = pixie.minimize(solve, lp_path)
-        return -pixie.optimal(), mips
 
     @property
     def zero(self):
@@ -112,7 +73,7 @@ class ALU:
         if self.cnf != '':
             self.cnf_file.write(' '.join(list(map(str, clause))) + ' 0\n')
         else:
-            slime.add_clause(clause)
+            raise Exception('No cnf file specified...')
         self.number_of_clauses += 1
         return clause
 
@@ -134,10 +95,7 @@ class ALU:
         if key is None:
             key = self.new_key()
         block = self.create_block(size)
-        if self.render_by_slime:
-            self.add_block([-variable for variable in block])
-        else:
-            self.add_block([self.false] + [-variable for variable in block])
+        self.add_block([self.false] + [-variable for variable in block])
         self.mapping(key, block)
         return key, block
 
@@ -413,40 +371,8 @@ class ALU:
             self.or_gate(il=[il[idx], result[idx + 1]], ol=result[idx])
         return result
 
-    def to_sat(self, solve=True, turbo=False, log=False, assumptions=None, cnf_path='', model_path='', proof_path=''):
-        if assumptions is None:
-            assumptions = []
-        model = slime.solve(solve, turbo, log, assumptions, cnf_path, model_path, proof_path)
-        if cnf_path:
-            with open(cnf_path, 'a') as file:
-                self.maps = {}
-                for key, value in self.map.items():
-                    if key.startswith('_'):
-                        continue
-                    self.maps[key] = [(1 if v > 0 else -1) * (abs(v) - 1) for v in value]
-        if model:
-            for key, value in self.map.items():
-                for arg in self.variables:
-                    ds = ''.join(map(str, [int(int(model[abs(bit) - 1]) > 0) for bit in value[::-1]]))
-                    if arg.signed and arg.key == key:
-                        if ds[0] == '1':
-                            arg.value = -int(''.join(['0' if d == '1' else '1' for d in ds[1:]]), 2) - 1
-                        else:
-                            arg.value = int(ds[1:], 2)
-                        del arg.bin[:]
-                    if not arg.signed and arg.key == key:
-                        ds = ''.join(map(str, [int(int(model[abs(bit) - 1]) > 0) for bit in value[::-1]]))
-                        arg.value = int(ds, 2)
-                        del arg.bin[:]
-            self.add_block([-lit for lit in model])
-            return True
-        return False
-
-    def int(self, key=None, block=None, value=None, size=None, deep=None, is_mip=False, is_real=False):
-        return Unit(self, signed=True, key=key, block=block, value=value, bits=size, deep=deep, is_mip=is_mip, is_real=is_real)
-
-    def nat(self, key=None, block=None, value=None, size=None, deep=None, is_mip=False, is_real=False):
-        return Unit(self, signed=False, key=key, block=block, value=value, bits=size, deep=deep, is_mip=is_mip, is_real=is_real)
+    def int(self, key=None, block=None, value=None, size=None, deep=None):
+        return Unit(self, key=key, block=block, value=value, bits=size, deep=deep)
 
     def array(self, dimension, size=None, signed=True):
         if signed:
@@ -455,8 +381,8 @@ class ALU:
             return [self.int() for _ in range(dimension)]
         else:
             if size is not None:
-                return [self.nat(size=size) for _ in range(dimension)]
-            return [self.nat() for _ in range(dimension)]
+                return [self.int(size=size) for _ in range(dimension)]
+            return [self.int() for _ in range(dimension)]
 
     def element(self, x, lst, y):
         idx = self.int(size=len(lst))

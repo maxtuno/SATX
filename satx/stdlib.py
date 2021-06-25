@@ -25,7 +25,6 @@ The standard high level library for the SAT-X system.
 
 from .alu import *
 from .gaussian import Gaussian
-from .linear import Linear
 from .rational import Rational
 
 csp = None
@@ -47,30 +46,17 @@ def check_engine():
         exit(0)
 
 
-def engine(bits=None, info=False, cnf='', render_by_slime=False):
+def engine(bits=None, info=False, cnf_path=''):
     """
     Initialize or reset the SAT-X system.
     :param bits: Implies an $[-2^{bits}, 2^{bits})$ search space.
     :param info: Print the information about the system.
     :param cnf: Path to render the generated CNF.
-    :param render_by_slime: for render by slime on satisfy method with cnf_path.
     """
     global csp
-    csp = ALU(0 if not bits else bits, cnf, render_by_slime)
+    csp = ALU(0 if not bits else bits, cnf_path)
     if info:
         version()
-        
-
-def slime_cli(cnf_path, model_path='', proof_path=''):
-    """
-    Use the SLIME SAT solver directly.
-    :param cnf_path: The CNF file to solve.
-    :param model_path: The path to the model if SAT (optional).
-    :param proof_path: The path for the DRUP-PROOF if UNSAT (optional).
-    :return: A list with the model if the instance is SAT or an empty list if it is UNSAT.
-    """
-    import slime
-    return slime.slime_cli(cnf_path, model_path, proof_path)
 
 
 def integer(bits=None):
@@ -82,18 +68,6 @@ def integer(bits=None):
     global csp
     check_engine()
     csp.variables.append(csp.int(size=bits))
-    return csp.variables[-1]
-
-
-def natural(bits=None):
-    """
-    Correspond to an unsigned integer.
-    :param bits: The bits for the unsigned integer.
-    :return: An instance of Unsigned Integer.
-    """
-    global csp
-    check_engine()
-    csp.variables.append(csp.nat(size=bits))
     return csp.variables[-1]
 
 
@@ -110,16 +84,6 @@ def constant(value, bits=None):
     return csp.variables[-1]
 
 
-def satisfy(solve=True, turbo=False, log=False, cnf_path=''):
-    """
-    Find a model for the current problem.
-    :param turbo: This make a simplification of the model, is more fast to solve, but destroy the internal structure of the problem, need regenerate, use for only one solution.
-    :param log: Show log for the SLIME SAT Solver.
-    :return: True if SATISFIABLE else False
-    """
-    return csp.to_sat(solve=solve, turbo=turbo, log=log, assumptions=None, cnf_path=cnf_path, model_path='', proof_path='')
-
-
 def subsets(lst, k=None, complement=False):
     """
     Generate all subsets for an specific universe of data.
@@ -130,7 +94,7 @@ def subsets(lst, k=None, complement=False):
     """
     global csp
     check_engine()
-    bits = csp.nat(size=len(lst))
+    bits = csp.int(size=len(lst))
     csp.variables.append(bits)
     if k is not None:
         assert sum(csp.zero.iff(-bits[i], csp.one) for i in range(len(lst))) == k
@@ -139,9 +103,9 @@ def subsets(lst, k=None, complement=False):
     if complement:
         complement_ = [csp.zero.iff(bits[i], lst[i]) for i in range(len(lst))]
         csp.variables += complement_
-        return subset_, complement_
+        return bits, subset_, complement_
     else:
-        return subset_
+        return bits, subset_
 
 
 def subset(lst, k, empty=None, complement=False):
@@ -166,16 +130,14 @@ def subset(lst, k, empty=None, complement=False):
     return subset_
 
 
-def vector(bits=None, size=None, signed=True, is_gaussian=False, is_rational=False, is_mip=False, is_real=False):
+def vector(bits=None, size=None, signed=True, is_gaussian=False, is_rational=False):
     """
     A vector of integers.
     :param bits: The bit bits for each integer.
     :param size: The bits of the vector.
-    :param signed: integer or natural components.
+    :param signed: integer or integer components.
     :param is_gaussian: Indicate of is a Gaussian Integers vector.
     :param is_rational: Indicate of is a Rational vector.
-    :param is_mip: Indicate of is a MIP vector.
-    :param is_real: Indicate of is a MIP vector and is real or int.
     :return: An instance of vector.
     """
     global csp
@@ -184,27 +146,19 @@ def vector(bits=None, size=None, signed=True, is_gaussian=False, is_rational=Fal
         return [rational(signed=signed) for _ in range(size)]
     if is_gaussian:
         return [gaussian(signed=signed) for _ in range(size)]
-    if is_mip:
-        lns = []
-        for _ in range(size):
-            lns.append(linear(is_real=is_real))
-        return lns
-    else:
-        array_ = csp.array(signed=signed, size=bits, dimension=size)
-        csp.variables += array_
+    array_ = csp.array(signed=signed, size=bits, dimension=size)
+    csp.variables += array_
     return array_
 
 
-def matrix(bits=None, dimensions=None, signed=True, is_gaussian=False, is_rational=False, is_mip=False, is_real=False):
+def matrix(bits=None, dimensions=None, signed=True, is_gaussian=False, is_rational=False):
     """
     A matrix of integers.
     :param bits: The bit bits for each integer.
     :param dimensions: An tuple with the dimensions for the Matrix (n, m).
-    :param signed: integer or natural components.
+    :param signed: integer or integer components.
     :param is_gaussian: Indicate of is a Gaussian Integers vector.
     :param is_rational: Indicate of is a Rational Matrix.
-    :param is_mip: Indicate of is a MIP Matrix.
-    :param is_real: Indicate of is a MIP Matrix and is real or int.
     :return: An instance of Matrix.
     """
     global csp
@@ -212,38 +166,22 @@ def matrix(bits=None, dimensions=None, signed=True, is_gaussian=False, is_ration
     matrix_ = []
     for i in range(dimensions[0]):
         row = []
-        lns = []
         for j in range(dimensions[1]):
-            if is_mip:
-                lns.append(linear(is_real=is_real))
-                row.append(lns[-1])
+            if is_rational:
+                x = integer(bits=bits)
+                y = integer(bits=bits)
+                csp.variables.append(x)
+                csp.variables.append(y)
+                row.append(Rational(x, y))
+            elif is_gaussian:
+                x = integer(bits=bits)
+                y = integer(bits=bits)
+                csp.variables.append(x)
+                csp.variables.append(y)
+                row.append(Gaussian(x, y))
             else:
-                if is_rational:
-                    if signed:
-                        x = integer(bits=bits)
-                        y = integer(bits=bits)
-                    else:
-                        x = natural(bits=bits)
-                        y = natural(bits=bits)
-                    csp.variables.append(x)
-                    csp.variables.append(y)
-                    row.append(Rational(x, y))
-                elif is_gaussian:
-                    if signed:
-                        x = integer(bits=bits)
-                        y = integer(bits=bits)
-                    else:
-                        x = natural(bits=bits)
-                        y = natural(bits=bits)
-                    csp.variables.append(x)
-                    csp.variables.append(y)
-                    row.append(Gaussian(x, y))
-                else:
-                    if signed:
-                        csp.variables.append(integer(bits=bits))
-                    else:
-                        csp.variables.append(natural(bits=bits))
-                row.append(csp.variables[-1])
+                csp.variables.append(integer(bits=bits))
+            row.append(csp.variables[-1])
         matrix_.append(row)
     return matrix_
 
@@ -555,7 +493,7 @@ def gaussian(x=None, y=None, signed=True):
     Create a gaussian integer from (x+yj).
     :param x: real
     :param y: imaginary
-    :param signed: integer or natural components, if x and y not provided.
+    :param signed: integer or integer components, if x and y not provided.
     :return: (x+yj)
     """
     check_engine()
@@ -564,7 +502,7 @@ def gaussian(x=None, y=None, signed=True):
             return Gaussian(integer(), integer())
     else:
         if x is None and y is None:
-            return Gaussian(natural(), natural())
+            return Gaussian(integer(), integer())
     return Gaussian(x, y)
 
 
@@ -573,7 +511,7 @@ def rational(x=None, y=None, signed=True):
     Create a rational x / y.
     :param x: numerator
     :param y: denominator
-    :param signed: integer or natural components, if x and y not provided.
+    :param signed: integer or integer components, if x and y not provided.
     :return: x / y
     """
     check_engine()
@@ -582,7 +520,7 @@ def rational(x=None, y=None, signed=True):
             return Rational(integer(), integer())
     else:
         if x is None and y is None:
-            return Rational(natural(), natural())
+            return Rational(integer(), integer())
     return Rational(x, y)
 
 
@@ -872,74 +810,8 @@ def tensor(dimensions):
     """
     global csp
     check_engine()
-    csp.variables.append(csp.nat(size=None, deep=dimensions))
+    csp.variables.append(csp.int(size=None, deep=dimensions))
     return csp.variables[-1]
-
-
-def linear(is_real=False):
-    """
-    Create a linear variable.
-    :param is_real: If true, the variable is a real number if not an integer.
-    :return: The new variable.
-    """
-    global csp
-    check_engine()
-    csp.mips.append(Linear(csp, len(csp.mips), is_real=is_real))
-    return csp.mips[-1]
-
-
-def maximize(objective, solve=True, lp_path=''):
-    """
-    Maximize the objective, according to the current linear constrains.
-    :param objective: An standard linear expression.
-    :param solve: Used to render lp file solve by PIXIE if True else only render lp file.
-    :param lp_path: The path for the model.
-    :return: the values of the model in order of variable creation.
-    """
-    global csp
-    ints = []
-    for var in csp.mips:
-        if var.is_real:
-            ints.append(0)
-        else:
-            ints.append(1)
-    csp.set_integer_condition(ints)
-    opt, result = csp.maximize(objective, solve, lp_path)
-    if solve:
-        for v, r in zip(csp.mips, result):
-            if not v.is_real:
-                v.value = int(r + 0.5)
-            else:
-                v.value = r
-        return opt
-    return False
-
-
-def minimize(objective, solve=True, lp_path=''):
-    """
-    Minimize the objective, according to the current linear constrains.
-    :param objective: An standard linear expression.
-    :param solve: Used to render lp file solve by PIXIE if True else only render lp file.
-    :param lp_path: The path for the model.
-    :return: the values of the model in order of variable creation.
-    """
-    global csp
-    ints = []
-    for var in csp.mips:
-        if var.is_real:
-            ints.append(0)
-        else:
-            ints.append(1)
-    csp.set_integer_condition(ints)
-    opt, result = csp.minimize(objective, solve, lp_path)
-    if solve:
-        for v, r in zip(csp.mips, result):
-            if not v.is_real:
-                v.value = int(r + 0.5)
-            else:
-                v.value = r
-        return opt
-    return None
 
 
 def clear(lst):
@@ -985,7 +857,7 @@ def is_not_prime(p):
     assert pow(csp.one + csp.one, p, p) != csp.one + csp.one
 
 
-def external_satisfy(solver, params=''):
+def satisfy(solver, params=''):
     """
     Solve with external solver.
     :param solver: The external solver.
@@ -1008,6 +880,7 @@ def external_satisfy(solver, params=''):
         content = csp.cnf_file.read()
         csp.cnf_file.seek(0, 0)
         csp.cnf_file.write(header.rstrip('\r\n') + '\n' + content)
+        csp.cnf_file.close()
     if '.' not in csp.cnf:
         raise Exception('CNF has no extension.')
     subprocess.call('{0} {2} {1}.cnf > {1}.mod'.format(solver, key, params), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -1020,22 +893,23 @@ def external_satisfy(solver, params=''):
             model = list(map(int, lines.strip(' ').split(' ')))
             for key, value in csp.map.items():
                 for arg in csp.variables:
-                    ds = ''.join(map(str, [int(int(model[abs(bit) - 1]) > 0) for bit in value[::-1]]))
-                    if arg.signed and arg.key == key:
-                        if ds[0] == '1':
-                            arg.value = -int(''.join(['0' if d == '1' else '1' for d in ds[1:]]), 2) - 1
-                        else:
-                            arg.value = int(ds[1:], 2)
-                        del arg.bin[:]
-                    if not arg.signed and arg.key == key:
+                    if arg.key == key:
                         arg.value = int(''.join(map(str, [int(int(model[abs(bit) - 1]) > 0) for bit in value[::-1]])), 2)
+                        del arg.bin[:]
             with open(csp.cnf, 'a') as file:
                 file.write(' '.join([str(-int(literal)) for literal in model]) + '\n')
+                csp.cnf_file = open(csp.cnf, 'r+')
+                csp.number_of_clauses += 1
+            header = 'p cnf {} {}'.format(csp.number_of_variables, csp.number_of_clauses)
+            content = csp.cnf_file.read()
+            csp.cnf_file.seek(0, 0)
+            csp.cnf_file.write(header.rstrip('\r\n') + '\n' + content[content.index('\n'):])
+            csp.cnf_file.close()
             return True
     return False
 
 
-def external_reset():
+def reset():
     global csp, render
     """
     Use this with external_satisfy on optimization rutines.

@@ -1,50 +1,38 @@
 """
-///////////////////////////////////////////////////////////////////////////////
-//        Copyright (c) 2012-2021 Oscar Riveros. all rights reserved.        //
-//                        oscar.riveros@peqnp.science                        //
-//                                                                           //
-//   without any restriction, Oscar Riveros reserved rights, patents and     //
-//  commercialization of this knowledge or derived directly from this work.  //
-///////////////////////////////////////////////////////////////////////////////
+Copyright (c) 2012-2021 Oscar Riveros [oscar.riveros@peqnp.science].
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
 import sys
 import setuptools
-from distutils.core import setup, Extension
+from distutils.core import setup
 
-ext_modules = [
-    Extension("slime",
-              language="c++",
-              sources=['src/SLIME.cc', 'src/SimpSolver.cc', 'src/Solver.cc'],
-              include_dirs=['.', 'include'],
-              extra_compile_args=['-std=c++11'],
-              ),
-    Extension("pixie",
-              language="c++",
-              sources=['src/pixie.cc'],
-              include_dirs=['.', 'include'],
-              extra_compile_args=['-std=c++11'],
-              ),
-]
+
 setup(
     name='SATX',
-    version='0.2.3',
+    version='0.3.0',
     packages=['satx'],
     url='http://www.sat-x.io',
-    license='copyright (c) 2012-2021 Oscar Riveros. All rights reserved.',
+    license='MIT',
     author='Oscar Riveros',
-    author_email='contact@peqnp.com',
-    description='PEQNP Mathematical Solver from http://www.peqnp.com',
-    ext_modules=ext_modules,
+    author_email='oscar.riveros@peqnp.science',
+    description='SAT-X The constraint modeling languaje for SAT solvers',
 )
