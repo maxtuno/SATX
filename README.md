@@ -21,6 +21,6 @@ pip install satx
 
 Note: Documentation is on development, for a general reference and examples see www.peqnp.com that is an old version of SAT-X but work with precompiled SLIME sat solver.
 
-you are welcome to contribute to the proyect, with examples, documentations, courses, slides, improvements... etc.
+you are welcome to contribute to the proyect, with examples, documentation, courses, slides, improvements... etc.
 
 <img src="https://cr-ss-service.azurewebsites.net/api/ScreenShot?widget=summary&username=maxtuno&badges=2&show-avatar=true&style=--header-bg-color:%23000;--border-radius:10px"/>
