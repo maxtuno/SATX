@@ -1,7 +1,7 @@
 ## SAT-X [![Downloads](https://pepy.tech/badge/satx)](https://pepy.tech/project/satx) 
 ### The constraint modeling language for SAT solvers
 
-SAT-X is a language for constrained optimization and decision problems over positive integers, that work with any SAT Competition standard SAT solver. Is based on Python, and is ase to learn and easy to use with all technologies asociated to this language.
+SAT-X is a language for constrained optimization and decision problems over positive integers, that work with any SAT Competition standard SAT solver. Is based on Python, and is ase to learn and easy to use with all technologies associated to this language.
 
 # Some excelent SAT Solvers
 
