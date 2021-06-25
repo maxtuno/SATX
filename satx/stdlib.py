@@ -37,9 +37,9 @@ def version():
     """
     Print the information about the system.
     """
-    print('SAT-X Mathematical Solver from http://www.peqnp.com')
+    print('SAT-X The constraint modeling language for SAT solvers http://www.peqnp.com')
     print('Copyright (c) 2012-2021 Oscar Riveros. all rights reserved.')
-    print('oscar.riveros@satx.science')
+    print('oscar.riveros@pe.science')
 
 
 def check_engine():
@@ -56,6 +56,7 @@ def engine(bits=None, info=False, cnf_path=''):
     :param cnf: Path to render the generated CNF.
     """
     global csp
+    reset()
     csp = ALU(0 if not bits else bits, cnf_path)
     if info:
         version()
@@ -919,5 +920,7 @@ def reset():
     :return:
     """
     import os
-    os.remove(csp.cnf)
+    if csp is not None:
+        if os.path.exists(csp.cnf):
+            os.remove(csp.cnf)
     render = False
