@@ -335,7 +335,7 @@ class Unit(Number):
         bb = self.data[:]
         for i in item:
             bb = bb[i]
-        return lambda a, b: (a if isinstance(a, Unit) else (self.alu.int(value=a) if a < 0 else self.alu.int(value=a))).iff(-bb, (b if isinstance(b, Unit) else (self.alu.int(value=b) if b < 0 else self.alu.int(value=b))))
+        return lambda a, b: (a if isinstance(a, Unit) else self.alu.int(value=a)).iff(-bb, (b if isinstance(b, Unit) else self.alu.int(value=b)))
 
     @property
     def binary(self):

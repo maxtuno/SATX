@@ -133,12 +133,11 @@ def subset(lst, k, empty=None, complement=False):
     return subset_
 
 
-def vector(bits=None, size=None, signed=True, is_gaussian=False, is_rational=False):
+def vector(bits=None, size=None, is_gaussian=False, is_rational=False):
     """
     A vector of integers.
     :param bits: The bit bits for each integer.
     :param size: The bits of the vector.
-    :param signed: integer or integer components.
     :param is_gaussian: Indicate of is a Gaussian Integers vector.
     :param is_rational: Indicate of is a Rational vector.
     :return: An instance of vector.
@@ -146,20 +145,19 @@ def vector(bits=None, size=None, signed=True, is_gaussian=False, is_rational=Fal
     global csp
     check_engine()
     if is_rational:
-        return [rational(signed=signed) for _ in range(size)]
+        return [rational() for _ in range(size)]
     if is_gaussian:
-        return [gaussian(signed=signed) for _ in range(size)]
-    array_ = csp.array(signed=signed, size=bits, dimension=size)
+        return [gaussian() for _ in range(size)]
+    array_ = csp.array(size=bits, dimension=size)
     csp.variables += array_
     return array_
 
 
-def matrix(bits=None, dimensions=None, signed=True, is_gaussian=False, is_rational=False):
+def matrix(bits=None, dimensions=None, is_gaussian=False, is_rational=False):
     """
     A matrix of integers.
     :param bits: The bit bits for each integer.
     :param dimensions: An tuple with the dimensions for the Matrix (n, m).
-    :param signed: integer or integer components.
     :param is_gaussian: Indicate of is a Gaussian Integers vector.
     :param is_rational: Indicate of is a Rational Matrix.
     :return: An instance of Matrix.
@@ -491,39 +489,29 @@ def index(ith, data):
     return csp.variables[-1]
 
 
-def gaussian(x=None, y=None, signed=True):
+def gaussian(x=None, y=None):
     """
     Create a gaussian integer from (x+yj).
     :param x: real
     :param y: imaginary
-    :param signed: integer or integer components, if x and y not provided.
     :return: (x+yj)
     """
     check_engine()
-    if signed:
-        if x is None and y is None:
-            return Gaussian(integer(), integer())
-    else:
-        if x is None and y is None:
-            return Gaussian(integer(), integer())
+    if x is None and y is None:
+        return Gaussian(integer(), integer())
     return Gaussian(x, y)
 
 
-def rational(x=None, y=None, signed=True):
+def rational(x=None, y=None):
     """
     Create a rational x / y.
     :param x: numerator
     :param y: denominator
-    :param signed: integer or integer components, if x and y not provided.
     :return: x / y
     """
     check_engine()
-    if signed:
-        if x is None and y is None:
-            return Rational(integer(), integer())
-    else:
-        if x is None and y is None:
-            return Rational(integer(), integer())
+    if x is None and y is None:
+        return Rational(integer(), integer())
     return Rational(x, y)
 
 
