@@ -1,10 +1,13 @@
-Metadata-Version: 1.0
+Metadata-Version: 2.1
 Name: SATX
-Version: 0.3.2
-Summary: SAT-X The constraint modeling languaje for SAT solvers
+Version: 0.3.3
+Summary: SAT-X The constraint modeling language for SAT solvers
 Home-page: http://www.sat-x.io
 Author: Oscar Riveros
 Author-email: oscar.riveros@peqnp.science
 License: MIT
-Description: UNKNOWN
 Platform: UNKNOWN
+License-File: LICENSE
+
+UNKNOWN
+

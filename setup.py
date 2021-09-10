@@ -28,11 +28,11 @@ from distutils.core import setup
 
 setup(
     name='SATX',
-    version='0.3.2',
+    version='0.3.3',
     packages=['satx'],
     url='http://www.sat-x.io',
     license='MIT',
     author='Oscar Riveros',
     author_email='oscar.riveros@peqnp.science',
-    description='SAT-X The constraint modeling languaje for SAT solvers',
+    description='SAT-X The constraint modeling language for SAT solvers',
 )
