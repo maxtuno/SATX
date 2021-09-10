@@ -1,4 +1,4 @@
-<a href="https://www.peqnp.com"><img border="0" alt="SAT-X" src="https://raw.githubusercontent.com/maxtuno/SATX/main/SAT-X.jpg" width="640" height="400">
+<a href="https://www.peqnp.com"><img border="0" alt="SAT-X" src="https://raw.githubusercontent.com/maxtuno/SATX/main/SAT-X.jpg" width="400" height="400">
 
 
 ## SAT-X [![Downloads](https://pepy.tech/badge/satx)](https://pepy.tech/project/satx) 
