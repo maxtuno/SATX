@@ -581,7 +581,7 @@ def hess_sequence(n, oracle, fast=False, cycles=1, target=0, seq=None):
                 anchor = glb
                 for i in range(len(xs) - 1):
                     for j in range(i + 1, len(xs)):
-                        key = hashlib.sha256(bytes([min(i, j)] + xs + [max(i, j)])).hexdigest()
+                        key = hashlib.sha256(''.join(map(str, [min(i, j)] + xs + [max(i, j)]))).hexdigest()
                         if key not in db:
                             db.append(key)
                             db.sort()
@@ -605,7 +605,7 @@ def hess_sequence(n, oracle, fast=False, cycles=1, target=0, seq=None):
                 anchor = glb
                 for i in range(len(xs)):
                     for j in range(len(xs)):
-                        key = hashlib.sha256(bytes([min(i, j)] + xs + [max(i, j)])).hexdigest()
+                        key = hashlib.sha256(''.join(map(str, [min(i, j)] + xs + [max(i, j)])).encode()).hexdigest()
                         if key not in db:
                             db.append(key)
                             db.sort()

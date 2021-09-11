@@ -28,7 +28,7 @@ from distutils.core import setup
 
 setup(
     name='SATX',
-    version='0.3.3',
+    version='0.3.4',
     packages=['satx'],
     url='http://www.sat-x.io',
     license='MIT',
