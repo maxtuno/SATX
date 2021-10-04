@@ -80,10 +80,7 @@ class Unit(Number):
         if isinstance(other, Unit):
             self.alu.bv_rca_gate(self.block, other.block, self.alu.true, output_block, self.alu.true)
         else:
-            if other < 0:
-                self.alu.bv_rcs_gate(self.block, self.alu.create_constant(-other), output_block)
-            else:
-                self.alu.bv_rca_gate(self.block, self.alu.create_constant(other), self.alu.true, output_block, self.alu.true)
+            self.alu.bv_rcs_gate(self.block, self.alu.create_constant(-other), output_block)
         entity = Unit(self.alu, block=output_block)
         self.alu.variables.append(entity)
         return entity
@@ -199,7 +196,7 @@ class Unit(Number):
         return entity
 
     def __rsub__(self, other):
-        return -(self - other)
+        return self - other
 
     def __lt__(self, other):
         if self.value is not None:
@@ -237,9 +234,9 @@ class Unit(Number):
     def __neg__(self):
         if self.value is not None:
             return -self.value
-        entity = Unit(self.alu, block=[-b for b in self.block]) + self.alu.one
-        self.alu.variables.append(entity)
-        return entity
+        # entity = Unit(self.alu, block=[-b for b in self.block]) + self.alu.one
+        # self.alu.variables.append(entity)
+        return self.alu.zero - self
 
     def __abs__(self):
         if self.value is not None:

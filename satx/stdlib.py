@@ -933,6 +933,12 @@ def satisfy(solver, params=''):
                 if isinstance(arg, Unit):
                     ds = ''.join(map(str, [int(int(model[abs(bit) - 1]) > 0) for bit in arg.block[::-1]]))
                     arg.value = int(ds, 2)
+                    """
+                    if ds[0] == '1':
+                        arg.value = -int(''.join(['0' if d == '1' else '1' for d in ds[1:]]), 2) - 1
+                    else:
+                        arg.value = int(ds[1:], 2)
+                    """
                     del arg.bin[:]
             with open(csp.cnf, 'a') as file:
                 file.write(' '.join([str(-int(literal)) for literal in model]) + '\n')

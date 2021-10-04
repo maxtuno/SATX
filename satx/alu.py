@@ -120,6 +120,26 @@ class ALU:
             value //= 2
         return block
 
+    def binary_or(self, ab, ol=None):
+        if ol is None:
+            ol = self.add_variable()
+        a, b = ab
+        self.add_block([a, b, -ol])
+        self.add_block([-a, b, ol])
+        self.add_block([a, -b, ol])
+        self.add_block([-a, -b, ol])
+        return ol
+
+    def binary_and(self, ab, ol=None):
+        if ol is None:
+            ol = self.add_variable()
+        a, b = ab
+        self.add_block([a, b, -ol])
+        self.add_block([-a, b, -ol])
+        self.add_block([a, -b, -ol])
+        self.add_block([-a, -b, ol])
+        return ol
+
     def or_gate(self, il, ol=None):
         if ol is None:
             ol = self.add_variable()
@@ -203,11 +223,11 @@ class ALU:
         return [bge((lhs, rhs), ol) for lhs, rhs, ol in zip(lhs_il, rhs_il, ol)]
 
     def bv_and_gate(self, lhs_il, rhs_il, ol=None):
-        ol = self.gate_vector(self.and_gate, lhs_il, rhs_il, ol)
+        ol = self.gate_vector(self.binary_and, lhs_il, rhs_il, ol)
         return ol
 
     def bv_or_gate(self, lhs_il, rhs_il, ol=None):
-        return self.gate_vector(self.or_gate, lhs_il, rhs_il, ol)
+        return self.gate_vector(self.binary_or, lhs_il, rhs_il, ol)
 
     def bv_xor_gate(self, lhs_il, rhs_il, ol=None):
         return self.gate_vector(self.binary_xor_gate, lhs_il, rhs_il, ol)

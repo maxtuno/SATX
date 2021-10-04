@@ -28,7 +28,8 @@ class Rational:
     def __init__(self, x, y):
         self.numerator = x
         self.denominator = y
-        assert self.denominator != self.denominator.alu.zero
+        if isinstance(self.denominator, Unit):
+            assert self.denominator != self.denominator.alu.zero
 
     def __eq__(self, other):
         c = Unit(self.numerator.alu)
@@ -73,30 +74,30 @@ class Rational:
 
     def __le__(self, other):
         if isinstance(other, Unit):
-            assert self.numerator * other >= self.denominator
-        else:
-            assert self.numerator * other.denominator >= self.denominator * other.numerator
-        return True
-
-    def __ge__(self, other):
-        if isinstance(other, Unit):
-            assert self.numerator <= other * self.denominator
+            assert self.numerator * other <= self.denominator
         else:
             assert self.numerator * other.denominator <= self.denominator * other.numerator
         return True
 
+    def __ge__(self, other):
+        if isinstance(other, Unit):
+            assert self.numerator >= other * self.denominator
+        else:
+            assert self.numerator * other.denominator >= self.denominator * other.numerator if other.numerator != 0 else self.denominator
+        return True
+
     def __lt__(self, other):
         if isinstance(other, Unit):
-            assert self.numerator * other > self.denominator
+            assert self.numerator * other < self.denominator
         else:
-            assert self.numerator * other.denominator > self.denominator * other.numerator
+            assert self.numerator * other.denominator < self.denominator * other.numerator if other.numerator != 0 else self.denominator
         return True
 
     def __gt__(self, other):
         if isinstance(other, Unit):
-            assert self.numerator < other * self.denominator
+            assert self.numerator > other * self.denominator
         else:
-            assert self.numerator * other.denominator < self.denominator * other.numerator
+            assert self.numerator * other.denominator > self.denominator * other.numerator
         return True
 
     def __pow__(self, power, modulo=None):

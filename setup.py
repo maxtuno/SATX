@@ -28,9 +28,9 @@ from distutils.core import setup
 
 setup(
     name='SATX',
-    version='0.3.4',
+    version='0.3.5',
     packages=['satx'],
-    url='http://www.sat-x.io',
+    url='http://www.peqnp.com',
     license='MIT',
     author='Oscar Riveros',
     author_email='oscar.riveros@peqnp.science',
