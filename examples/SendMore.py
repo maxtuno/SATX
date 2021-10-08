@@ -14,7 +14,7 @@ s, e, n, d, m, o, r, y = letters = satx.vector(size=8)
 satx.apply_single(letters, lambda t: t < 10)
 
 # letters are given different values
-satx.all_different(letters),
+satx.all_different(letters)
 
 # words cannot start with 0
 assert s > 0
