@@ -1,5 +1,5 @@
 """
-Copyright (c) 2012-2021 Oscar Riveros [oscar.riveros@peqnp.science].
+Copyright (c) 2012-2021 Oscar Riveros [SAT-X].
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -28,11 +28,10 @@ from distutils.core import setup
 
 setup(
     name='SATX',
-    version='0.3.5',
+    version='0.3.6',
     packages=['satx'],
-    url='http://www.peqnp.com',
+    url='https://twitter.com/maxtuno',
     license='MIT',
     author='Oscar Riveros',
-    author_email='oscar.riveros@peqnp.science',
     description='SAT-X The constraint modeling language for SAT solvers',
 )

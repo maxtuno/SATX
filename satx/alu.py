@@ -1,5 +1,5 @@
 """
-Copyright (c) 2012-2021 Oscar Riveros [oscar.riveros@peqnp.science].
+Copyright (c) 2012-2021 Oscar Riveros [SAT-X].
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -44,7 +44,12 @@ class ALU:
         self.true = self.add_variable()
         self.false = -self.true
         self.constants = {}
-        self.add_block([-self.true])
+        if self.cnf != '':
+            self.cnf_file.write(' '.join(list(map(str, [-self.true]))) + ' 0\n')
+            self.number_of_clauses += 1
+        else:
+            raise Exception('No cnf file specified...')
+        self.signed = False
 
     @property
     def zero(self):
@@ -72,6 +77,12 @@ class ALU:
 
     def add_block(self, clause):
         clause = sorted(set(clause), key=abs)
+        if self.true == clause[0]:
+            clause.remove(self.true)
+        if self.false == clause[0]:
+            return clause
+        if not clause:
+            return clause
         if self.cnf != '':
             self.cnf_file.write(' '.join(list(map(str, clause))) + ' 0\n')
         else:

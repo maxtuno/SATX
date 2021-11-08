@@ -1,5 +1,5 @@
 """
-Copyright (c) 2012-2021 Oscar Riveros [oscar.riveros@peqnp.science].
+Copyright (c) 2012-2021 Oscar Riveros [SAT-X].
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -39,7 +39,7 @@ def version():
     """
     print('SAT-X The constraint modeling language for SAT solvers http://www.peqnp.com')
     print('Copyright (c) 2012-2021 Oscar Riveros. all rights reserved.')
-    print('oscar.riveros@peqnp.science')
+    print('[SAT-X]')
 
 
 def check_engine():
@@ -48,16 +48,18 @@ def check_engine():
         exit(0)
 
 
-def engine(bits=None, info=False, cnf_path=''):
+def engine(bits=None, info=False, cnf_path='', signed=False):
     """
     Initialize or reset the SAT-X system.
     :param bits: Implies an $[-2^{bits}, 2^{bits})$ search space.
     :param info: Print the information about the system.
     :param cnf: Path to render the generated CNF.
+    :param signed: Indicates use of signed integer engine
     """
     global csp
     reset()
     csp = ALU(0 if not bits else bits, cnf_path)
+    csp.signed = signed
     if info:
         version()
 
@@ -895,7 +897,7 @@ def is_not_prime(p):
     assert pow(csp.one + csp.one, p, p) != csp.one + csp.one
 
 
-def satisfy(solver, params=''):
+def satisfy(solver, params='', log=False):
     """
     Solve with external solver.
     :param solver: The external solver.
@@ -921,7 +923,15 @@ def satisfy(solver, params=''):
         csp.cnf_file.close()
     if '.' not in csp.cnf:
         raise Exception('CNF has no extension.')
-    subprocess.call('{0} {2} {1}.cnf > {1}.mod'.format(solver, key, params), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    with open('{}.mod'.format(key), 'w') as file:
+        proc = subprocess.Popen('{0} {1}.cnf {2}'.format(solver, key, params), shell=True, stdout=subprocess.PIPE)
+        for stdout_line in iter(proc.stdout.readline, ''):
+            if not stdout_line:
+                break
+            file.write(stdout_line.decode())
+            if log:
+                print(stdout_line.decode(), end='')
+        proc.stdout.close()
     with open('{}.mod'.format(key), 'r') as mod:
         lines = ''
         for line in mod.readlines():
@@ -932,18 +942,18 @@ def satisfy(solver, params=''):
             for arg in csp.variables:
                 if isinstance(arg, Unit):
                     ds = ''.join(map(str, [int(int(model[abs(bit) - 1]) > 0) for bit in arg.block[::-1]]))
-                    arg.value = int(ds, 2)
-                    """
-                    if ds[0] == '1':
-                        arg.value = -int(''.join(['0' if d == '1' else '1' for d in ds[1:]]), 2) - 1
+                    if csp.signed:
+                        if ds[0] == '1':
+                            arg.value = -int(''.join(['0' if d == '1' else '1' for d in ds[1:]]), 2) - 1
+                        else:
+                            arg.value = int(ds[1:], 2)
                     else:
-                        arg.value = int(ds[1:], 2)
-                    """
+                        arg.value = int(ds, 2)
                     del arg.bin[:]
             with open(csp.cnf, 'a') as file:
                 file.write(' '.join([str(-int(literal)) for literal in model]) + '\n')
-                csp.cnf_file = open(csp.cnf, 'r+')
                 csp.number_of_clauses += 1
+            csp.cnf_file = open(csp.cnf, 'r+')
             header = 'p cnf {} {}'.format(csp.number_of_variables, csp.number_of_clauses)
             content = csp.cnf_file.read()
             csp.cnf_file.seek(0, 0)
