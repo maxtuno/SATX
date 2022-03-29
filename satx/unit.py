@@ -234,8 +234,9 @@ class Unit(Number):
     def __neg__(self):
         if self.value is not None:
             return -self.value
-        # entity = Unit(self.alu, block=[-b for b in self.block]) + self.alu.one
-        # self.alu.variables.append(entity)
+        #if self.alu.signed:
+        #    entity = Unit(self.alu, block=[-b for b in self.block]) + self.alu.one
+        #    self.alu.variables.append(entity)
         return self.alu.zero - self
 
     def __abs__(self):

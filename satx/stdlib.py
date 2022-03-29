@@ -37,8 +37,8 @@ def version():
     """
     Print the information about the system.
     """
-    print('SAT-X The constraint modeling language for SAT solvers http://www.peqnp.com')
-    print('Copyright (c) 2012-2021 Oscar Riveros. all rights reserved.')
+    print('SAT-X The constraint modeling language for SAT solvers')
+    print('Copyright (c) 2012-2022 Oscar Riveros. all rights reserved.')
     print('[SAT-X]')
 
 
@@ -48,7 +48,7 @@ def check_engine():
         exit(0)
 
 
-def engine(bits=None, info=False, cnf_path='', signed=False):
+def engine(bits=None, info=False, cnf_path='', signed=False, simplify=False):
     """
     Initialize or reset the SAT-X system.
     :param bits: Implies an $[-2^{bits}, 2^{bits})$ search space.
@@ -60,6 +60,7 @@ def engine(bits=None, info=False, cnf_path='', signed=False):
     reset()
     csp = ALU(0 if not bits else bits, cnf_path)
     csp.signed = signed
+    csp.simplify = simplify
     if info:
         version()
 
@@ -923,14 +924,18 @@ def satisfy(solver, params='', log=False):
         csp.cnf_file.close()
     if '.' not in csp.cnf:
         raise Exception('CNF has no extension.')
-    with open('{}.mod'.format(key), 'w') as file:
-        proc = subprocess.Popen('{0} {1}.cnf {2}'.format(solver, key, params), shell=True, stdout=subprocess.PIPE)
+    with open('{}.mod'.format(key), 'w', encoding="utf8", errors='ignore') as file:
+        proc = subprocess.Popen('{0} {1}.cnf {2}'.format(solver, key, params), shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         for stdout_line in iter(proc.stdout.readline, ''):
             if not stdout_line:
                 break
-            file.write(stdout_line.decode())
-            if log:
-                print(stdout_line.decode(), end='')
+            try:
+                line = stdout_line.decode()
+                file.write(line)
+                if log:
+                    print(line, end='')
+            except:
+                pass
         proc.stdout.close()
     with open('{}.mod'.format(key), 'r') as mod:
         lines = ''

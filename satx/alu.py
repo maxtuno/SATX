@@ -50,6 +50,7 @@ class ALU:
         else:
             raise Exception('No cnf file specified...')
         self.signed = False
+        self.simplify = False
 
     @property
     def zero(self):
@@ -77,12 +78,13 @@ class ALU:
 
     def add_block(self, clause):
         clause = sorted(set(clause), key=abs)
-        if self.true == clause[0]:
-            clause.remove(self.true)
-        if self.false == clause[0]:
-            return clause
-        if not clause:
-            return clause
+        if self.simplify:
+            if self.true == clause[0]:
+                clause.remove(self.true)
+            if self.false == clause[0]:
+                return clause
+            if not clause:
+                return clause
         if self.cnf != '':
             self.cnf_file.write(' '.join(list(map(str, clause))) + ' 0\n')
         else:
