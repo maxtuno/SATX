@@ -1,5 +1,5 @@
 """
-Copyright (c) 2012-2021 Oscar Riveros [SAT-X].
+Copyright (c) 2012-2021 Oscar Riveros [https://twitter.com/maxtuno].
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -147,14 +147,16 @@ class Unit(Number):
             if isinstance(power, Unit):
                 import functools
                 import operator
-                aa = Unit(self.alu, bits=2 * self.bits // 3)
+                assert power > 0
+                aa = Unit(self.alu, bits=self.alu.deep)
+                assert aa[[0]](0, 1) == 0
                 self.alu.variables.append(aa)
-                assert functools.reduce(operator.add, [aa[[i]](0, 1) for i in range(2 * self.bits // 3)]) == self.alu.one
-                assert functools.reduce(operator.ior, [aa[[i]](0, i) for i in range(2 * self.bits // 3)]) == power
+                assert functools.reduce(operator.add, [aa[[i]](0, 1) for i in range(1, self.alu.deep)]) == self.alu.one
+                assert functools.reduce(operator.add, [aa[[i]](0, i) for i in range(1, self.alu.deep)]) == power
                 if modulo is not None:
                     assert modulo != 0
-                    return functools.reduce(operator.ior, [aa[[i]](0, self ** i) for i in range(2 * self.bits // 3)]) % modulo
-                return functools.reduce(operator.ior, [aa[[i]](0, self ** i) for i in range(2 * self.bits // 3)])
+                    return functools.reduce(operator.add, [aa[[i]](0, self ** i) for i in range(1, self.alu.deep)]) % modulo
+                return functools.reduce(operator.add, [aa[[i]](0, self ** i) for i in range(1, self.alu.deep)])
             else:
                 other = Unit(self.alu, value=1)
                 self.alu.variables.append(other)

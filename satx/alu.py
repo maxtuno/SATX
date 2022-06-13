@@ -1,5 +1,5 @@
 """
-Copyright (c) 2012-2021 Oscar Riveros [SAT-X].
+Copyright (c) 2012-2021 Oscar Riveros [https://twitter.com/maxtuno].
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -25,7 +25,7 @@ from satx.unit import Unit
 
 
 class ALU:
-    def __init__(self, bits=None, cnf=''):
+    def __init__(self, bits=None, deep=None, cnf=''):
         import sys
         sys.setrecursionlimit(1 << 16)
         self.cnf = cnf
@@ -36,6 +36,7 @@ class ALU:
         self.map = {}
         self.maps = {}
         self.bits = bits
+        self.deep = deep + 1
         self.oo = 2 ** bits
         self.number_of_clauses = 0
         self.number_of_variables = 0

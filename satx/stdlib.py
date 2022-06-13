@@ -1,5 +1,5 @@
 """
-Copyright (c) 2012-2021 Oscar Riveros [SAT-X].
+Copyright (c) 2012-2021 Oscar Riveros [https://twitter.com/maxtuno].
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -48,17 +48,18 @@ def check_engine():
         exit(0)
 
 
-def engine(bits=None, info=False, cnf_path='', signed=False, simplify=False):
+def engine(bits=None, deep=None, info=False, cnf_path='', signed=False, simplify=False):
     """
     Initialize or reset the SAT-X system.
     :param bits: Implies an $[-2^{bits}, 2^{bits})$ search space.
+    :param deep: For exponentials range.
     :param info: Print the information about the system.
     :param cnf: Path to render the generated CNF.
     :param signed: Indicates use of signed integer engine
     """
     global csp
     reset()
-    csp = ALU(0 if not bits else bits, cnf_path)
+    csp = ALU(0 if not bits else bits, bits // 2 if not deep else deep, cnf_path)
     csp.signed = signed
     csp.simplify = simplify
     if info:
@@ -560,6 +561,7 @@ def hess_sequence(n, oracle, fast=False, cycles=1, target=0, seq=None):
     :return optimized sequence.
     """
     import hashlib
+    import math
 
     db = []
 
@@ -567,7 +569,7 @@ def hess_sequence(n, oracle, fast=False, cycles=1, target=0, seq=None):
         xs = seq
     else:
         xs = list(range(n))
-    glb = oracle(xs) + 1
+    glb = math.inf
     opt = xs[:]
 
     def __inv(i, j, xs):
@@ -576,20 +578,25 @@ def hess_sequence(n, oracle, fast=False, cycles=1, target=0, seq=None):
             i += 1
             j -= 1
 
+    def __next_orbit(xs):
+        for i in range(len(xs)):
+            for j in range(len(xs)):
+                key = hashlib.sha256(bytes(xs)).hexdigest()
+                if key not in db:
+                    db.append(key)
+                    db.sort()
+                    return True
+                __inv(min(i, j), max(i, j), xs)
+        return False
+
     top = glb
     for _ in range(cycles):
-        glb = top + 1
         if fast:
-            while True:
-                anchor = glb
+            while __next_orbit(xs):
+                glb = math.inf
+                anchor = top
                 for i in range(len(xs) - 1):
                     for j in range(i + 1, len(xs)):
-                        key = hashlib.sha256(''.join(map(str, [min(i, j)] + xs + [max(i, j)]))).hexdigest()
-                        if key not in db:
-                            db.append(key)
-                            db.sort()
-                        else:
-                            continue
                         __inv(min(i, j), max(i, j), xs)
                         loc = oracle(xs)
                         if loc < glb:
@@ -601,19 +608,14 @@ def hess_sequence(n, oracle, fast=False, cycles=1, target=0, seq=None):
                                     return opt
                         elif loc > glb:
                             __inv(min(i, j), max(i, j), xs)
-                if anchor == glb:
+                if top == anchor:
                     break
         else:
-            while True:
-                anchor = glb
+            while __next_orbit(xs):
+                glb = math.inf
+                anchor = top
                 for i in range(len(xs)):
                     for j in range(len(xs)):
-                        key = hashlib.sha256(''.join(map(str, [min(i, j)] + xs + [max(i, j)])).encode()).hexdigest()
-                        if key not in db:
-                            db.append(key)
-                            db.sort()
-                        else:
-                            continue
                         __inv(min(i, j), max(i, j), xs)
                         loc = oracle(xs)
                         if loc < glb:
@@ -625,9 +627,8 @@ def hess_sequence(n, oracle, fast=False, cycles=1, target=0, seq=None):
                                     return opt
                         elif loc > glb:
                             __inv(min(i, j), max(i, j), xs)
-                if anchor == glb:
+                if top == anchor:
                     break
-
     return opt
 
 
@@ -650,6 +651,7 @@ def hess_binary(n, oracle, fast=False, cycles=1, target=0, seq=None):
     :return optimized sequence.
     """
     import hashlib
+    import math
 
     db = []
 
@@ -657,67 +659,56 @@ def hess_binary(n, oracle, fast=False, cycles=1, target=0, seq=None):
         xs = seq
     else:
         xs = [False] * n
-    glb = oracle(xs) + 1
+    glb = math.inf
     opt = xs[:]
 
-    def __inv(i, j, xs):
-        if xs[i] == xs[j]:
-            xs[i] = not xs[j]
-        else:
-            aux = xs[i]
-            xs[i] = not xs[j]
-            xs[j] = aux
+    def __next_orbit(xs):
+        for i in range(len(xs)):
+            key = hashlib.sha256(bytes(xs)).hexdigest()
+            if key not in db:
+                db.append(key)
+                db.sort()
+                return True
+            xs[i] = not xs[i]
+        return False
 
     top = glb
     for _ in range(cycles):
-        glb = top + 1
         if fast:
-            while True:
-                anchor = glb
-                for i in range(len(xs) - 1):
-                    for j in range(i + 1, len(xs)):
-                        key = hashlib.sha256(bytes([min(i, j)] + xs + [max(i, j)])).hexdigest()
-                        if key not in db:
-                            db.append(key)
-                            db.sort()
-                        else:
-                            continue
-                        __inv(min(i, j), max(i, j), xs)
-                        loc = oracle(xs)
-                        if loc < glb:
-                            glb = loc
-                            if glb < top:
-                                top = glb
-                                opt = xs[:]
-                                if top <= target:
-                                    return opt
-                        elif loc > glb:
-                            __inv(min(i, j), max(i, j), xs)
-                if anchor == glb:
+            while __next_orbit(xs):
+                glb = math.inf
+                anchor = top
+                for i in range(len(xs)):
+                    xs[i] = not xs[i]
+                    loc = oracle(xs)
+                    if loc < glb:
+                        glb = loc
+                        if glb < top:
+                            top = glb
+                            opt = xs[:]
+                            if top <= target:
+                                return opt
+                    elif loc > glb:
+                        xs[i] = not xs[i]
+                if top == anchor:
                     break
         else:
-            while True:
-                anchor = glb
+            while __next_orbit(xs):
+                glb = math.inf
+                anchor = top
                 for i in range(len(xs)):
-                    for j in range(len(xs)):
-                        key = hashlib.sha256(bytes([min(i, j)] + xs + [max(i, j)])).hexdigest()
-                        if key not in db:
-                            db.append(key)
-                            db.sort()
-                        else:
-                            continue
-                        __inv(min(i, j), max(i, j), xs)
-                        loc = oracle(xs)
-                        if loc < glb:
-                            glb = loc
-                            if glb < top:
-                                top = glb
-                                opt = xs[:]
-                                if top <= target:
-                                    return opt
-                        elif loc > glb:
-                            __inv(min(i, j), max(i, j), xs)
-                if anchor == glb:
+                    xs[i] = not xs[i]
+                    loc = oracle(xs)
+                    if loc < glb:
+                        glb = loc
+                        if glb < top:
+                            top = glb
+                            opt = xs[:]
+                            if top <= target:
+                                return opt
+                    elif loc > glb:
+                        xs[i] = not xs[i]
+                if top == anchor:
                     break
     return opt
 
@@ -743,26 +734,33 @@ def hess_abstract(xs, oracle, f, g, log=None, fast=False, cycles=1, target=0):
     :return optimized vector over the oracle over and f, g.
     """
     import hashlib
+    import math
 
     db = []
 
-    glb = oracle(xs) + 1
+    glb = math.inf
     opt = xs[:]
+
+    def __next_orbit(xs):
+        for i in range(len(xs)):
+            for j in range(len(xs)):
+                key = hashlib.sha256(bytes(xs)).hexdigest()
+                if key not in db:
+                    db.append(key)
+                    db.sort()
+                    return True
+                g(min(i, j), max(i, j), xs)
+                f(min(i, j), max(i, j), xs)
+        return False
 
     top = glb
     for _ in range(cycles):
-        glb = top + 1
         if fast:
-            while True:
-                anchor = glb
+            glb = math.inf
+            anchor = top
+            while __next_orbit(xs):
                 for i in range(len(xs) - 1):
                     for j in range(i + 1, len(xs)):
-                        key = hashlib.sha256(bytes([min(i, j)] + xs + [max(i, j)])).hexdigest()
-                        if key not in db:
-                            db.append(key)
-                            db.sort()
-                        else:
-                            continue
                         f(min(i, j), max(i, j), xs)
                         loc = oracle(xs)
                         if loc < glb:
@@ -776,19 +774,14 @@ def hess_abstract(xs, oracle, f, g, log=None, fast=False, cycles=1, target=0):
                                     return opt
                         elif loc > glb:
                             g(min(i, j), max(i, j), xs)
-                if anchor == glb:
+                if top == anchor:
                     break
         else:
-            while True:
-                anchor = glb
+            while __next_orbit(xs):
+                glb = math.inf
+                anchor = top
                 for i in range(len(xs)):
                     for j in range(len(xs)):
-                        key = hashlib.sha256(bytes([min(i, j)] + xs + [max(i, j)])).hexdigest()
-                        if key not in db:
-                            db.append(key)
-                            db.sort()
-                        else:
-                            continue
                         f(min(i, j), max(i, j), xs)
                         loc = oracle(xs)
                         if loc < glb:
@@ -802,7 +795,7 @@ def hess_abstract(xs, oracle, f, g, log=None, fast=False, cycles=1, target=0):
                                     return opt
                         elif loc > glb:
                             g(min(i, j), max(i, j), xs)
-                if anchor == glb:
+                if top == anchor:
                     break
     return opt
 
