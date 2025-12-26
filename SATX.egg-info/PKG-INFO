@@ -1,0 +1,20 @@
+Metadata-Version: 2.1
+Name: SATX
+Version: 0.3.8
+Summary: SATX – Exact constraint-based modeling for SAT solvers
+Home-page: https://github.com/maxtuno/SATX
+Author: Oscar Riveros
+Author-email: 
+License: AGPL-3.0-or-later
+Platform: any
+License-File: LICENSE
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Science/Research
+Classifier: Intended Audience :: Developers
+Classifier: Topic :: Scientific/Engineering :: Mathematics
+Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
+Classifier: Topic :: Software Development :: Libraries
+Classifier: License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3 :: Only
+Classifier: Operating System :: OS Independent

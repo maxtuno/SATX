@@ -1,27 +1,33 @@
 # SATX
 
-SATX is an exact constraint-based modeling system built on top of SAT solvers. It lets you express arithmetic,
-logical, and algebraic constraints in Python while preserving discrete exactness.
+**SATX** is an exact constraint-based modeling system built on top of SAT solvers.
 
-## Installation
+It allows users to express arithmetic, logical, and algebraic constraints
+directly in Python, and solve them using SAT technology, while preserving
+discrete exactness.
 
-Use Python 3.10+.
+SATX is designed for researchers, engineers, and advanced users who need
+precise constraint modeling beyond floating-point optimization.
 
-```bash
-# install the latest development sources directly from the SATX repository
-pip install git+https://github.com/maxtuno/SATX.git
+---
 
-# install the package into a virtual environment for development
-pip install -e .[dev]
-```
+## What SATX Is
 
-You can also build source and wheel distributions locally:
+SATX provides:
 
-```bash
-python -m build
-```
+- Integer and rational constraint modeling
+- Exact arithmetic (no floating-point semantics)
+- Support for negative values
+- Linear and non-linear Diophantine constraints
+- Algebraic helpers (Gaussian-style, rational constraints)
+- SAT-based feasibility solving
 
-## Quickstart
+SATX is **not** a traditional MIP solver.
+It prioritizes exactness and expressiveness over numerical relaxation.
+
+---
+
+## Basic Example
 
 ```python
 import satx
@@ -35,26 +41,7 @@ assert x > 0
 assert y > 0
 assert x + y == 7
 
-print("SATX version:", satx.__version__)
-```
-
-Verify the installed version directly:
-
-```bash
-python -c "import satx; print(satx.__version__)"
-```
-
-## Development workflow
-
-The repository uses a `src/` layout and [PEP 517](https://peps.python.org/pep-0517/) via `pyproject.toml`.
-Run the following commands when you work on SATX:
-
-- `make venv` – create `.venv`, upgrade pip, and install the package plus dev dependencies (pytest).
-- `make test` – execute `python -m pytest`.
-- `make build` – produce `dist/` with `python -m build`.
-
-Once you publish, anyone can install straight from Git:
-
-```bash
-pip install git+https://<host>/<org>/SATX.git
-```
+if satx.satisfy(solver="slime.exe"):
+    print(x, y)
+else:
+    print("UNSAT")
