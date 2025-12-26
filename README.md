@@ -48,7 +48,7 @@ python -m build
 ```python
 import satx
 
-satx.engine(bits=8)
+satx.engine(bits=8, signed=True, cnf_path='test.cnf')
 
 x = satx.integer()
 y = satx.integer()
@@ -57,7 +57,8 @@ assert x > 0
 assert y > 0
 assert x + y == 7
 
-if satx.satisfy(solver="slime.exe"):
+if satx.satisfy(solver="slime"):
     print(x, y)
 else:
     print("UNSAT")
+
