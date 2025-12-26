@@ -25,6 +25,22 @@ SATX provides:
 SATX is **not** a traditional MIP solver.
 It prioritizes exactness and expressiveness over numerical relaxation.
 
+## Installation
+
+```bash
+# install the latest development sources directly from the SATX repository
+pip install git+https://github.com/maxtuno/SATX.git
+
+# install the package into a virtual environment for development
+pip install -e .[dev]
+```
+
+You can also build source and wheel distributions locally:
+
+```bash
+python -m build
+```
+
 ---
 
 ## Basic Example
