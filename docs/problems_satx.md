@@ -1,5 +1,3 @@
----
-
 ## 1) Optimización / CP
 
 ### 1.1 Knapsack 0/1 (máxima utilidad con restricción de peso)
@@ -337,3 +335,4 @@ if __name__ == "__main__":
 ```
 
 ---
+
