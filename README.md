@@ -171,4 +171,93 @@ However, advances in SAT solvers have made SAT-based approaches
 significantly more powerful. In practice, any standard solver that performs well
 in the SAT Competition can be used effectively.
 
+---
+
+### Problem Statement
+
+**Exponential Diophantine Equation with Polynomial Exponents**
+
+We consider the following exponential Diophantine equation:
+
+$$
+a^{x^{e}} + b^{y^{e}} = c^{z}
+$$
+
+where
+
+$$
+a,b,c \in \mathbb{Z} \setminus \{0\}, \qquad x,y,z,e \in \mathbb{Z}_{>0}.
+$$
+
+The objective is to determine whether there exist integer solutions satisfying the equation under bounded arithmetic, and to enumerate such solutions if they exist.
+
+This problem belongs to the class of **super-exponential Diophantine equations**, where the growth rate is dominated by polynomial exponents inside exponential terms. Such equations are generally intractable by classical analytic methods and are therefore explored here using **SAT-based bounded model checking**.
+
+---
+
+### Computational Approach
+
+The variables are encoded as bounded signed integers, and the equation is translated into a Boolean satisfiability (SAT) problem. The solver searches for assignments that satisfy:
+
+- Nonzero bases (a, b, c),
+- Positive exponents (x, y, z, e),
+- Exact equality of the exponential expression.
+
+The search is exhaustive within the chosen bit-width and reports all satisfying assignments until the formula becomes unsatisfiable.
+
+---
+
+### Example Solution (Bounded Model)
+
+One solution found by the solver is:
+
+$$
+a = 3,\; b = -2,\; c = -1,\; x = 1,\; y = 1,\; z = 8,\; e = 6
+$$
+
+which satisfies:
+
+$$
+3^{1} + (-2)^{1} = (-1)^{8}
+$$
+
+that is,
+
+$$
+3 - 2 = 1
+$$
+
+```python
+import satx
+
+satx.engine(bits=16, signed=True, cnf_path='test.cnf')
+
+a = satx.integer()
+b = satx.integer()
+c = satx.integer()
+
+x = satx.integer()
+y = satx.integer()
+z = satx.integer()
+
+e = satx.integer()
+
+assert a ** (x ** e) + b ** (y ** e) == c ** z
+
+satx.apply_single([a, b, c], lambda k: k != 0)
+satx.apply_single([x, y, z], lambda k: k > 0)
+
+while satx.satisfy(solver='slime'):
+    print(a, b, c, x, y, z, e)
+else:
+    print("UNSAT")
+```
+
+### Remarks
+
+* The presence of negative bases introduces parity effects that allow nontrivial solutions even for large exponents.
+* In the unrestricted (unbounded) setting, the existence of nontrivial solutions is largely open.
+* This formulation serves as a **benchmark problem** for studying the limits of SAT solvers on arithmetic with extreme nonlinear growth.
+
+---
 
