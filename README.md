@@ -31,11 +31,6 @@ It prioritizes exactness and expressiveness over numerical relaxation.
 
 ```bash
 pip install git+https://github.com/maxtuno/SATX.git
-pip install -e .[dev]
-```
-
-```bash
-python -m build
 ```
 
 ---
@@ -260,4 +255,5 @@ else:
 * This formulation serves as a **benchmark problem** for studying the limits of SAT solvers on arithmetic with extreme nonlinear growth.
 
 ---
+
 
