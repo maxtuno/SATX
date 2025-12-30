@@ -53,9 +53,7 @@ The family $\mathrm{H10}_b(p)$ is monotone in $b$: if SAT for some $b$, then SAT
 - If **no** ideal solution exists, no finite prefix of bounds can certify “it will never appear”.
 
 Formally, turning
-$$
-\mathrm{H10}_\infty(p)=\bigvee_{b\ge 1}\mathrm{H10}_b(p)
-$$
+$$H10_\infty(p) = \bigvee_{b \ge 1} H10_b(p)$$
 into a total decider would require an **effective convergence modulus**, i.e., a computable function $B(p)$ such that:
 
 $$
@@ -80,11 +78,9 @@ This does not “refute” classical results; it **relocates** them: they become
 
 ## 4. SAT as an interface for operational truth
 
-For each $b$, the proposition $\mathrm{H10}_b(p)$ can be compiled into a SAT instance $\Phi_{p,b}$ such that:
+For each $b$, the proposition $H10_b(p)$ can be compiled into a SAT instance $\Phi_{p,b}$ such that:
 
-$$
-\Phi_{p,b}\ \text{SAT} \iff \mathrm{H10}_b(p).
-$$
+$$\Phi_{p,b} \text{ SAT} \iff \mathrm{H10}_b(p)$$
 
 A SAT result provides a **witness** (assignment). An UNSAT result can be accompanied by **proofs** (DRAT/FRAT) if the pipeline supports it.  
 Operational truth becomes *auditable*.
