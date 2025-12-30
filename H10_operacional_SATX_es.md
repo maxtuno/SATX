@@ -1,126 +1,121 @@
-# Solubilidad Diofántica Relativizada a Recursos (H10 Operacional) vía Certificados SAT
+# Resource-Relativized Diophantine Solvability (Operational H10) via SAT Certificates
 
-> **Tesis:** en computación física, la noción relevante de “existencia de solución” es **existencia representable y verificable**.  
-> El objeto operacional natural no es el H10 clásico sobre $\mathbb{Z}$ infinito, sino una **familia tipada por recursos** (bits/semántica) cuya satisfacibilidad se decide con **certificados finitos** (SAT/SMT).
-
----
-
-## 0. Motivación (sin metafísica)
-
-Todo procedimiento computable se ejecuta sobre estados físicos finitos ⇒ estados finitos ⇒ palabras de bits finitas.  
-En consecuencia, **la semántica operacional** de un “algoritmo” ya viene indexada por recursos (p. ej. ancho de palabra $b$) y por una disciplina aritmética (p. ej. **no-overflow**).
+> **Thesis:** in physical computation, the relevant notion of “existence of a solution” is **representable, verifiable existence**.  
+> The natural operational object is not the classical H10 over infinite $\mathbb{Z}$, but a **resource-typed family** (bits/semantics) whose satisfiability is decided with **finite certificates** (SAT/SMT).
 
 ---
 
-## 1. Tipado semántico: dos cuantificadores, dos mundos
+## 0. Motivation (no metaphysics)
 
-Sea $p(\vec x)\in\mathbb{Z}[\vec x]$ un polinomio diofántico.
-
-### 1.1. H10 ideal (clásico)
-
-$$
-\mathrm{H10}_\infty(p)\;:\;\exists \vec x\in\mathbb{Z}^n\;\; p(\vec x)=0.
-$$
-
-Este es un predicado sobre una estructura **infinita**. Es un objeto legítimo de metamatemática.
-
-### 1.2. H10 operacional (relativizado a bits)
-
-Fijado un ancho $b$ y una semántica aritmética operacional (por ejemplo, enteros con dominio $D_b$ y disciplina de no-overflow):
-
-$$
-\mathrm{H10}_b(p)\;:\;\exists \vec x\in D_b^n\;\; p(\vec x)=0.
-$$
-
-Aquí $D_b$ es **finito** (bit-vectors). Este predicado es **decidible** por enumeración finita, y (más útil) **compilable** a SAT con certificado.
-
-### 1.3. Relación exacta (torre → ideal)
-
-$$
-\mathrm{H10}_\infty(p)\iff \exists b\;\mathrm{H10}_b(p),
-$$
-
-bajo el embedding usual “tamaño binario finito ⇒ cabe en algún $b$”.  
-Esta equivalencia es correcta pero **no algorítmica** en sentido decisor total: la cuantificación $\exists b$ introduce un límite ideal.
+Every computable procedure runs on finite physical states ⇒ finite states ⇒ finite bit-strings.  
+Therefore, the **operational semantics** of an “algorithm” is intrinsically indexed by resources (e.g., word width $b$) and by an arithmetic discipline (e.g., **no-overflow**).
 
 ---
 
-## 2. El punto duro: por qué el límite $b\to\infty$ no da un decisor
+## 1. Semantic typing: two quantifiers, two worlds
 
-La familia $\mathrm{H10}_b(p)$ es monótona en $b$: si es SAT para algún $b$, lo es para todo $b'\ge b$.  
-Por tanto:
+Let $p(\vec x)\in\mathbb{Z}[\vec x]$ be a Diophantine polynomial.
 
-- Si existe solución ideal, basta un $b$ finito para encontrarla (semi-decidibilidad).
-- Si **no** existe solución ideal, no hay un prefijo finito de bounds que certifique “nunca aparecerá”.
+### 1.1. Ideal H10 (classical)
 
-Formalmente, convertir
 $$
-\mathrm{H10}_\infty(p)=\bigvee_{b\ge 1}\mathrm{H10}_b(p)
+H10_\infty(p)\;:\;\exists \vec x\in\mathbb{Z}^n\;\; p(\vec x)=0.
 $$
-en un decisor total exigiría un **módulo efectivo de convergencia**, es decir, una función computable $B(p)$ tal que:
+
+This is a predicate over an **infinite** structure. It is a legitimate metamathematical object.
+
+### 1.2. Operational H10 (bit-relativized)
+
+Fix a width $b$ and an operational arithmetic semantics (e.g., integers over a domain $D_b$ with a no-overflow discipline):
+
+$$
+H10_b(p)\;:\;\exists \vec x\in D_b^n\;\; p(\vec x)=0.
+$$
+
+Here $D_b$ is **finite** (bit-vectors). This predicate is **decidable** by finite enumeration and, more usefully, **compilable** to SAT with a certificate.
+
+### 1.3. Exact relationship (tower → ideal)
+
+$$
+H10_\infty(p)\iff \exists b\;H10_b(p),
+$$
+
+under the standard embedding “finite binary size ⇒ fits into some $b$”.  
+This equivalence is correct but **not algorithmic** as a total decider: the quantifier $\exists b$ introduces an ideal limit.
+
+---
+
+## 2. The hard point: why the limit $b\to\infty$ does not yield a total decider
+
+The family $H10_b(p)$ is monotone in $b$: if SAT for some $b$, then SAT for all $b'\ge b$. Hence:
+
+- If an ideal solution exists, some finite $b$ will eventually find it (semi-decidability).
+- If **no** ideal solution exists, no finite prefix of bounds can certify “it will never appear”.
+
+Formally, turning
+$$H10_\infty(p) = \bigvee_{b \ge 1} H10_b(p)$$
+into a total decider would require an **effective convergence modulus**, i.e., a computable function $B(p)$ such that:
 
 $$
 \big(\exists \vec x\in\mathbb{Z}^n: p(\vec x)=0\big)\Rightarrow
 \big(\exists \vec x\in D_{B(p)}^n: p(\vec x)=0\big).
 $$
 
-Ese $B(p)$ universal **no existe en general** (la barrera tipo DPRM/Halting se reexpresa exactamente como “no hay bound computable general del tamaño mínimo de testigo”).
+Such a universal $B(p)$ **does not exist in general** (the DPRM/Halting barrier can be re-expressed precisely as “no general computable bound on the minimal witness size”).
 
-**Interpretación operacional:** la indecidibilidad aparece *solo* cuando se pretende colapsar la torre finita a un único cuantificador no acotado.
-
----
-
-## 3. Consecuencia epistemológica
-
-- $\mathrm{H10}_\infty$ es un **ideal semántico**: bien definido en teoría, pero no verificable por un agente físico de forma total.
-- $\mathrm{H10}_b$ es **verdad operacional**: existe testigo representable + certificado verificable.
-
-Esto no “refuta” resultados clásicos; los **reubica**: pasan a ser teoremas sobre el ideal $\infty$, no obstáculos sobre verificación finita.
+**Operational reading:** undecidability appears *only* when one tries to collapse the finite tower into a single unbounded existential quantifier.
 
 ---
 
-## 4. SAT como interfaz de verdad operacional
+## 3. Epistemic consequence
 
-Para cada $b$, la proposición $\mathrm{H10}_b(p)$ puede compilarse a una instancia SAT $\Phi_{p,b}$ tal que:
+- $H10_\infty$ is an **ideal semantic object**: well-defined in theory, but not totally verifiable by a physical agent.
+- $H10_b$ is **operational truth**: representable witness + verifiable certificate.
 
-$$
-\Phi_{p,b}\ \text{SAT} \iff \mathrm{H10}_b(p).
-$$
-
-La salida SAT es un **testigo** (asignación) y la salida UNSAT puede acompañarse de **pruebas** (DRAT/FRAT) si el pipeline lo soporta.  
-Así, la verdad operacional es *auditable*.
+This does not “refute” classical results; it **relocates** them: they become theorems about the $\infty$-ideal, not obstacles to finite verification.
 
 ---
 
-## 5. Implicación práctica: “resolver” no significa “colapsar el ideal”
+## 4. SAT as an interface for operational truth
 
-El objetivo de este marco no es proclamar “H10∞ resuelto”, sino establecer:
+Para cada $b$, la proposición $H10_b(p)$ puede compilarse en una instancia SAT $\Phi_{p,b}$ tal que:
 
-1. Un objeto computacional real: $\mathrm{H10}_b$ con semántica explícita.  
-2. Un método verificable: compilación exacta + certificados SAT.  
-3. Una frontera clara: el ideal $\exists b$ no es decidor total sin un bound efectivo general.
+$$\Phi_{p,b} \text{ SAT} \iff \mathrm{H10}_b(p)$$
 
----
-
-## 6. Programa de investigación (no-retórico)
-
-1. **Clases con bounds efectivos:** identificar fragmentos de $p$ donde existe $B(p)$ computable y útil.  
-2. **Semánticas aritméticas:** comparar no-overflow, wrap-around, saturating, etc., como axiomas operacionales.  
-3. **Certificados fuertes:** proof logging, minimización de cores, trazabilidad reproducible.  
-4. **Fases de aparición de soluciones:** cómo emergen testigos al crecer $b$ (estructura, no “magia”).  
-5. **Numerales no enteros:** fixed-point/rational como semánticas discretas adicionales (manteniendo verificación finita).
+A SAT result provides a **witness** (assignment). An UNSAT result can be accompanied by **proofs** (DRAT/FRAT) if the pipeline supports it.  
+Operational truth becomes *auditable*.
 
 ---
 
-## 7. Nota final (para evitar conflictos humanos)
+## 5. Practical implication: “solving” does not mean “collapsing the ideal”
 
-Gran parte del ruido académico proviene de usar el mismo verbo “existe” para dos objetos tipológicamente distintos:
+The goal is not to proclaim “H10∞ solved”, but to establish:
 
-- existe $_\infty$ (ideal)  
-- existe $_b$ (operacional)
-
-Una vez tipado el lenguaje, el conflicto desaparece: se está hablando de **problemas distintos** con criterios de verdad distintos.
+1. A real computational object: $H10_b$ with explicit semantics.  
+2. A verifiable method: exact compilation + SAT certificates.  
+3. A clean frontier: the ideal $\exists b$ is not a total decider without a general effective bound.
 
 ---
 
-**Implementación concreta:** este marco puede materializarse como compilación a SAT en un sistema tipo SATX, donde el dominio queda fijado por bits y la semántica (p. ej. no-overflow) queda declarada y verificable.
+## 6. Research program (non-rhetorical)
+
+1. **Classes with effective bounds:** identify fragments of $p$ admitting a computable, useful $B(p)$.  
+2. **Arithmetic semantics:** compare no-overflow, wrap-around, saturating, etc., as operational axioms.  
+3. **Strong certificates:** proof logging, core minimization, reproducible traceability.  
+4. **Witness emergence phases:** how solutions appear as $b$ grows (structure, not “magic”).  
+5. **Non-integer numerals:** fixed-point/rational as additional discrete semantics (while preserving finite verification).
+
+---
+
+## 7. Final note (to prevent semantic conflict)
+
+Much academic noise comes from using the same verb “exists” for two typologically different objects:
+
+- exists $_\infty$ (ideal)  
+- exists $_b$ (operational)
+
+Once the language is typed, the conflict disappears: one is discussing **different problems** under different truth criteria.
+
+---
+
+**Concrete implementation:** this framework can be materialized via SAT compilation in a system like SATX, where the domain is fixed by bits and the semantics (e.g., no-overflow) is declared and verifiable.
