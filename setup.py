@@ -22,7 +22,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="SATX",
-    version="0.3.8",
+    version="0.3.9",
     packages=find_packages(),
     url="https://github.com/maxtuno/SATX",
     license="AGPL-3.0-or-later",

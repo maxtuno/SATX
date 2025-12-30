@@ -33,9 +33,20 @@ It prioritizes exactness and expressiveness over numerical relaxation.
 pip install git+https://github.com/maxtuno/SATX.git
 ```
 
+## Documentation
+
+- Full reference: `docs/satx_full_reference.md`
+- Math cookbook: `docs/cookbook_math.md`
+- Fixed-point release notes: `docs/fixed_point_release_notes.md`
+
+## Prerequisites
+
+SATX emits CNF and calls an external SAT solver.
+- Ensure a solver binary is on PATH (examples use `slime` via `satx.satisfy(solver="slime")`).
+
 ---
 
-## Basic Example
+## Quickstart
 
 ```python
 import satx
@@ -55,11 +66,66 @@ else:
     print("UNSAT")
 ```
 
----
+If you omit `cnf_path`, SATX auto-generates `<script>.cnf` from the current script name.
+(Note: `cnf_path=""` triggers legacy behavior and currently raises "No cnf file specified...".)
 
-# Goormaghtigh Equation
+--- 
 
-## Statement
+## Fixed-point decimals (scaled integers)
+
+SATX avoids floating-point arithmetic. Use `satx.Fixed` to model decimal values as a scaled integer (`raw / scale`).
+
+```python
+import satx
+from fractions import Fraction
+
+satx.engine(bits=16, cnf_path="tmp_fixed.cnf")
+
+a = satx.fixed_const(1.25, scale=100)
+b = satx.fixed_const(2.00, scale=100)
+c = satx.fixed_const(2.50, scale=100)
+
+assert a * b == c
+assert satx.satisfy(solver="slime")
+assert c.value == Fraction(5, 2)  # 2.50
+```
+
+You can also construct fixed-point values directly via `satx.integer(scale=...)`:
+
+```python
+import satx
+
+satx.engine(bits=16, cnf_path="tmp_fixed_integer.cnf")
+x = satx.integer(scale=100)
+y = satx.integer(scale=100)
+total = satx.integer(scale=100)
+assert x + y == total
+assert satx.satisfy(solver="slime")
+```
+
+Fixed-by-default mode (opt-in):
+
+```python
+import satx
+
+satx.engine(bits=12, fixed_default=True, fixed_scale=100, cnf_path="tmp_fixed_default.cnf")
+x = satx.integer()            # Fixed(scale=100)
+y = satx.vector(size=3)       # list[Fixed]
+u = satx.integer(force_int=True)  # Unit override
+z = satx.vector(size=3, fixed=True, scale=1000)
+```
+
+Need scale guidance? `satx.fixed_advice(...)` returns numeric limits (no constraints, no output).
+
+Printing:
+- `str(fixed)` and `repr(fixed)` are numeric (lists/matrices print clean values).
+- For diagnostics, use `fixed.debug_repr()`.
+
+## Examples
+
+### Goormaghtigh equation
+
+#### Statement
 
 The **Goormaghtigh equation** is the exponential Diophantine equation
 
@@ -81,12 +147,12 @@ $$
 1 + y + y^2 + \cdots + y^{n-1}.
 $$
 
-## Interpretation
+#### Interpretation
 
 The equation states that two **finite geometric series** with different bases have the same sum.  
 Each side represents a *repunit-like* number expressed in base \(x\) and base \(y\), respectively.
 
-## Known Results
+#### Known results
 
 Only two non-trivial solutions are currently known:
 
@@ -98,12 +164,12 @@ $$
 \frac{2^{13} - 1}{2 - 1} = \frac{90^{3} - 1}{90 - 1} = 8191.
 $$
 
-## Status
+#### Status
 
 It is **conjectured** that these are the only solutions with \(x \neq y\) and \(m,n > 2\).  
 Despite its simple appearance, the equation remains **unsolved in general**.
 
-## Mathematical Significance
+#### Mathematical significance
 
 The Goormaghtigh equation lies at the intersection of:
 - exponential Diophantine equations,
@@ -168,7 +234,9 @@ in the SAT Competition can be used effectively.
 
 ---
 
-### Problem Statement
+### Super-exponential Diophantine equation (polynomial exponents)
+
+#### Problem statement
 
 **Exponential Diophantine Equation with Polynomial Exponents**
 
@@ -190,7 +258,7 @@ This problem belongs to the class of **super-exponential Diophantine equations**
 
 ---
 
-### Computational Approach
+#### Computational approach
 
 The variables are encoded as bounded signed integers, and the equation is translated into a Boolean satisfiability (SAT) problem. The solver searches for assignments that satisfy:
 
@@ -202,7 +270,7 @@ The search is exhaustive within the chosen bit-width and reports all satisfying 
 
 ---
 
-### Example Solution (Bounded Model)
+#### Example solution (bounded model)
 
 One solution found by the solver is:
 
@@ -248,12 +316,68 @@ else:
     print("UNSAT")
 ```
 
-### Remarks
+#### Remarks
 
 * The presence of negative bases introduces parity effects that allow nontrivial solutions even for large exponents.
 * In the unrestricted (unbounded) setting, the existence of nontrivial solutions is largely open.
 * This formulation serves as a **benchmark problem** for studying the limits of SAT solvers on arithmetic with extreme nonlinear growth.
 
+### Facility location / assignment (small MIP-style example)
+
+Problem statement (plain English):
+- We have 3 candidate facilities and 3 clients.
+- Opening a facility `i` has a fixed cost `f[i]`.
+- Assigning client `j` to facility `i` has a cost `c[j][i]`.
+- Each client must be assigned to exactly one facility.
+- A client can only be assigned to a facility if that facility is opened.
+- At least one facility must be opened.
+- Decision variables are binary.
+
+```python
+import satx
+
+satx.version()
+
+satx.engine(bits=10, cnf_path="tmp_facility.cnf")
+
+# y[i] = 1 if facility i is opened
+y = satx.vector(size=3)
+
+# x[j][i] = 1 if client j is assigned to facility i
+x = satx.matrix(dimensions=(3, 3))
+
+cost_open = [9, 7, 6]
+cost_assign = [[4, 6, 9], [5, 4, 7], [6, 3, 4]]
+
+obj = satx.dot(cost_open, y) + satx.dot(satx.flatten(x), satx.flatten(cost_assign))
+
+for j in range(3):
+    assert sum(x[j][i] for i in range(3)) == 1
+
+for j in range(3):
+    for i in range(3):
+        assert x[j][i] <= y[i]
+
+assert sum(y) >= 1
+
+satx.all_binaries(y)
+satx.all_binaries(satx.flatten(x))
+
+optimal = satx.oo()
+while satx.satisfy(solver="slime"):
+    print(obj)
+    optimal = obj.value
+    satx.clear([obj])
+    assert obj < optimal
+else:
+    print("Final best objective value")
+    print(x)
+    print(y)
+    print(optimal)
+```
+
 ---
 
+## License
 
+See `LICENSE`.

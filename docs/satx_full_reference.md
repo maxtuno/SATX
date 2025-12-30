@@ -35,10 +35,13 @@ SATX uses a single global engine instance (stored internally as `satx.stdlib.csp
 ```python
 import satx
 
-satx.engine(bits=10, cnf_path="tmp.cnf")
+satx.engine(bits=10)
 ```
 
 After `satx.engine(...)`, every operator call that involves SATX objects **immediately emits CNF clauses** into `cnf_path`. There is no separate “build” phase; the Python expression evaluation itself builds the problem.
+
+Omitting `cnf_path` derives `<script>.cnf` from `__main__.__file__` or `sys.argv[0]`; pass `cnf_path=""` to keep the legacy ?no CNF? mode.
+
 
 ### 2.2 Solve Boundary
 
@@ -87,11 +90,11 @@ SATX’s primary scalar type is `satx.Unit` (a fixed-width bit-vector interprete
 
 Important: comparisons like `x < 3` **do not return a Python `bool`**; they emit constraints and return a truthy object/literal. They are meant to be used as statements (often inside `assert`) to ensure the expression is evaluated.
 
-### 3.1 `satx.integer(bits=None)`
+### 3.1 `satx.integer(bits=None, scale=None, force_int=False)`
 
-Purpose: create a fresh integer variable (`Unit`) using the engine’s default bit-width, or an explicit width when `bits` is provided.
+Purpose: create a fresh integer variable (`Unit`) using the engine’s default bit-width, or an explicit width when `bits` is provided. If `scale` is provided (positive Python `int`), it returns a `satx.Fixed` wrapper whose value is `raw / scale`. When `engine(..., fixed_default=True)` is active, calling `satx.integer()` with no `scale` returns `Fixed` using the engine’s `fixed_scale`; pass `force_int=True` to always get a plain `Unit`.
 
-Domain semantics (by engine mode):
+Domain semantics (by engine mode, applied to the underlying `raw` integer):
 - Unsigned engine: `[0, 2**w - 1]`
 - Signed engine: `[-2**(w-1), 2**(w-1)-1]`
 
@@ -122,9 +125,9 @@ assert x.value**2 + y.value**2 == 100
 
 Common misuse: using SATX expressions in Python control flow (e.g., `if x < 3:`). The condition is truthy and does not branch by value; use constraints (see Section 5).
 
-### 3.2 `satx.constant(value, bits=None)`
+### 3.2 `satx.constant(value, bits=None, scale=None)`
 
-Purpose: create a constant `Unit` embedded into the CNF.
+Purpose: create a constant `Unit` embedded into the CNF (or a `satx.Fixed` constant when `scale` is provided).
 
 Implementation detail: the `bits=` argument is ignored for constants; constants are encoded at the engine width.
 
@@ -157,14 +160,19 @@ assert pow(2, n.value) - 7 == x.value**2
 
 Common misuse: using negative constants in unsigned mode and expecting negative values. Unsigned decoding interprets the bit pattern in `[0, 2**bits-1]` (see Section 11).
 
-### 3.3 `satx.vector(bits=None, size=None, is_gaussian=False, is_rational=False)`
+### 3.3 `satx.vector(bits=None, size=None, is_gaussian=False, is_rational=False, *, fixed=None, scale=None)`
 
 Purpose: create a list of length `size`.
 
 Return type:
-- Default: `list[Unit]`
+- Default: `list[Unit]` (or `list[Fixed]` when `engine(..., fixed_default=True)` is active)
 - `is_gaussian=True`: `list[Gaussian]` (each has `.real` / `.imag` Units)
 - `is_rational=True`: `list[Rational]` (each has `.numerator` / `.denominator` Units)
+
+Fixed-point overrides:
+- `fixed=True` forces `Fixed` regardless of engine defaults (uses `scale` or the engine `fixed_scale`).
+- `fixed=False` forces `Unit` regardless of engine defaults.
+- `scale=...` implies `fixed=True` and uses that scale.
 
 Minimal example:
 
@@ -359,7 +367,59 @@ assert x.value % 2 == 1
 
 Realistic use case: direct bit constraints in factorization models (see Section 12.2).
 
-### 3.10 `satx.ALU` (advanced)
+### 3.10 Fixed-point decimals (`satx.Fixed`)
+
+SATX does not implement floating-point arithmetic. To model decimal numbers, SATX provides a small fixed-point wrapper:
+
+- A `satx.Fixed` represents the value `raw / scale`.
+- `raw` is a `satx.Unit` (fixed-width bit-vector integer).
+- `scale` is a positive Python `int` (typically `10**k`, e.g., `100` for cents).
+
+Constructors/helpers:
+- `satx.fixed(scale=100, bits=None)`: fresh fixed-point variable (creates a fresh underlying `Unit`).
+- `satx.fixed_const(x, scale=100)`: fixed-point constant by encoding `raw = round(x * scale)`.
+  - For `fractions.Fraction`, the encoding is **exact only** when `numerator * scale` is divisible by `denominator` (otherwise it raises `ValueError`).
+- `satx.as_fixed(u, scale)`: wrap an existing `Unit` as a `Fixed`.
+- `satx.to_rational(f)`: convert a `Fixed` into `satx.Rational(f.raw, scale)` (exact).
+- `satx.as_int(f, policy="exact|floor|ceil|round")`: convert a `Fixed` to a `Unit` with explicit rounding policy.
+- `satx.fixed_mul_floor(a, b)` / `satx.fixed_mul_round(a, b)`: explicit rounding variants for multiply-rescale.
+
+Value inspection:
+- After solving, `f.value` returns a `fractions.Fraction` for exactness (or `None` before solve).
+- `str(f)` prints a clean decimal when `scale` is a power of 10 (e.g., `1.25`), otherwise it prints a simplified fraction.
+- `repr(f)` is numeric (same as `str(f)`) so printing lists/matrices shows values, not wrappers; use `f.debug_repr()` for diagnostic output.
+
+Arithmetic rules (all explicit, no hidden rounding):
+- `+`, `-`, comparisons: only allowed when scales match; implemented by operating directly on `raw`.
+- `int` and `Unit` operands are auto-promoted to the same scale when used from the `Fixed` side (e.g., `x + 1`, `x == u`).
+- Mixed operations are only supported from the `Fixed` side; `Unit + Fixed` is not implemented.
+- `*` (exact rescale at the same scale `S`): for `a=A/S`, `b=B/S`, return `r=R/S` by introducing fresh `R` and enforcing:
+  - `A * B == R * S`
+  This keeps the result scale at `S` while requiring exact divisibility; if not divisible (or if any underlying bit-vector overflow occurs) the model becomes UNSAT.
+- Division: `Fixed` does not implement `/`. Use `satx.fixed_div_exact(a, b)` to get a `Rational(A, B)` (scale cancels when scales match), or `satx.fixed_div_exact(a, b, scale=S)` to get a `Fixed` result with an explicit exactness constraint.
+- `Fixed.__pow__` accepts only Python `int` exponents and is limited by `engine(..., max_fixed_pow=...)` to avoid accidental CNF blowups.
+- `Fixed.__mul__` and `Fixed.__pow__` may emit a `UserWarning` when the scale is large relative to bit-width; you can silence these with `warnings.filterwarnings(...)`.
+
+Advisory helper:
+- `satx.fixed_advice(*vars, degree=2, expected_max=None)`: returns numeric guidance for scale/bit-width (no constraints, no output). If called with no variables, it reports the engine defaults: `scale=fixed_scale` when `engine(..., fixed_default=True)`, otherwise `scale=1`.
+
+Important quirk: SATX `<<` / `>>` are **not** bit shifts (they are defined as `x * (2*k)` and `x // (2*k)`). Do not use shifts for decimal scaling; use explicit multiplication/division by constants, or keep the scaling in `scale=...`.
+
+Minimal example (exact multiply rescale):
+
+```python
+import satx
+
+satx.engine(bits=16, cnf_path="tmp_fixed_mul.cnf")
+a = satx.fixed_const(1.25, scale=100)
+b = satx.fixed_const(2.00, scale=100)
+c = satx.fixed_const(2.50, scale=100)
+assert a * b == c
+assert satx.satisfy(solver="slime")
+assert a.value * b.value == c.value
+```
+
+### 3.11 `satx.ALU` (advanced)
 
 `ALU` is SATX’s low-level CNF builder and bit-vector gate implementation. `satx.engine(...)` constructs an `ALU` internally and stores it in the global engine state (exported as `satx.csp`).
 
@@ -544,7 +604,7 @@ For each function below:
 
 #### `satx.version()`
 
-What it does: prints a fixed identification banner to stdout.
+What it does: prints a fixed identification banner to stdout and returns the version string.
 
 Constraints: none.
 
@@ -553,7 +613,7 @@ Minimal example:
 ```python
 import satx
 
-satx.version()
+assert satx.version() == "0.3.9"
 ```
 
 Use case: sanity check you are running SATX (no solver involved).
@@ -575,9 +635,14 @@ satx.check_engine()
 
 Use case: guard custom helper functions that assume `satx.engine(...)` was called.
 
-#### `satx.engine(bits=None, deep=None, info=False, cnf_path="", signed=False, simplify=True)`
+#### `satx.engine(bits=None, deep=None, info=False, cnf_path=None, signed=False, simplify=True, fixed_default=False, fixed_scale=1, max_fixed_pow=8)`
 
-What it does: initializes/resets the global engine and opens `cnf_path` for CNF output.
+What it does: initializes/resets the global engine and opens `cnf_path` for CNF output (defaults to `<script>.cnf` derived from `__main__.__file__` or `sys.argv[0]`, pass `cnf_path=""` to keep the legacy “no CNF file” mode).
+
+Fixed defaults:
+- `fixed_default=True` makes `satx.integer()`/`satx.vector()`/`satx.matrix()` return `Fixed` by default.
+- `fixed_scale` is the default scale used in that mode.
+- `max_fixed_pow` limits `Fixed ** k` (Python int exponent) to avoid large CNF blowups.
 
 Constraints: starts a fresh CNF; subsequent operations emit clauses immediately.
 
@@ -665,7 +730,7 @@ Use case: exclude sentinel max values in finite-domain models.
 
 #### `satx.clear(lst)`
 
-What it does: sets `.value = None` on each `Unit` in `lst`.
+What it does: sets `.value = None` on each `Unit` in `lst` (accepts `Fixed` values and clears their `.raw`).
 
 Constraints: none.
 
@@ -684,11 +749,20 @@ assert x.value is None
 
 Use case: reusing variables after a solve (otherwise operations evaluate concretely); see Section 10.4.
 
+#### `satx.fixed_advice(*vars, degree=2, expected_max=None)`
+
+What it does: returns numeric guidance for scale/bit-width tradeoffs. It does not emit constraints and produces no output.
+
+Return shape:
+- `bits`, `signed`
+- `scales`: list of entries for each detected scale, each with `scale`, `resolution`, `raw_max_abs`, `value_max_abs`, `safe_mul_value_max`, `safe_pow_value_max`
+- `bits_suggested` (per scale) if `expected_max` is provided
+
 ### 6.2 Scalars and Collections
 
-#### `satx.integer(bits=None)`
+#### `satx.integer(bits=None, scale=None, force_int=False)`
 
-What it does: creates a fresh `Unit` variable.
+What it does: creates a fresh `Unit` variable (or a `satx.Fixed` wrapper when `scale` is provided). When `engine(..., fixed_default=True)` is active, `satx.integer()` defaults to `Fixed` unless `force_int=True`.
 
 Constraints: none directly; constraints arise from later operations.
 
@@ -696,9 +770,9 @@ Minimal example: see Section 3.1.
 
 Use case: most models.
 
-#### `satx.constant(value, bits=None)`
+#### `satx.constant(value, bits=None, scale=None)`
 
-What it does: creates a constant `Unit` encoded at engine width.
+What it does: creates a constant `Unit` encoded at engine width (or a `satx.Fixed` constant when `scale` is provided).
 
 Constraints: unit clauses fixing the constant’s bits.
 
@@ -706,9 +780,9 @@ Minimal example: see Section 3.2.
 
 Use case: fixed bases in exponent constraints, fixed coefficients.
 
-#### `satx.vector(bits=None, size=None, is_gaussian=False, is_rational=False)`
+#### `satx.vector(bits=None, size=None, is_gaussian=False, is_rational=False, *, fixed=None, scale=None)`
 
-What it does: creates a list of variables (or `Gaussian`/`Rational` objects when requested).
+What it does: creates a list of variables (or `Gaussian`/`Rational` objects when requested). When `engine(..., fixed_default=True)` is active, it returns `Fixed` by default unless overridden.
 
 Constraints: none directly.
 
@@ -726,9 +800,9 @@ Minimal example: see Section 3.4.
 
 Use case: bit-level modeling and conditional selection.
 
-#### `satx.matrix(bits=None, dimensions=None, is_gaussian=False, is_rational=False)`
+#### `satx.matrix(bits=None, dimensions=None, is_gaussian=False, is_rational=False, *, fixed=None, scale=None)`
 
-What it does: creates a nested Python list of variables (rows × cols).
+What it does: creates a nested Python list of variables (rows × cols). When `engine(..., fixed_default=True)` is active, it returns `Fixed` by default unless overridden.
 
 Constraints: none directly.
 
@@ -2023,7 +2097,7 @@ assert Fraction(int(r.numerator), int(r.denominator)) == Fraction(1, 2)
 
 ## 14. Best Practices
 
-- Always call `satx.engine(..., cnf_path="something.cnf")` before creating variables.
+- Always call `satx.engine(...)` before creating variables (omit `cnf_path` to auto-derive `<script>.cnf`, or pass `cnf_path=""` to disable).
 - Keep bit-widths small and explicit; enlarge only when necessary.
 - Prefer `signed=True` when modeling with negatives or signed comparisons.
 - Avoid Python control flow over SATX expressions (`if`, `while`); use constraints instead.
@@ -2043,6 +2117,7 @@ This section enumerates all public callables exposed by:
 ### 15.1 `satx` (alphabetical)
 
 - `ALU(bits=None, deep=None, cnf="")` — CNF/bit-vector engine class (`satx/alu.py`).
+- `Fixed(raw, scale)` — Fixed-point wrapper class (`satx/fixed.py`).
 - `Gaussian(x, y)` — Gaussian integer wrapper class (`satx/gaussian.py`).
 - `Rational(x, y)` — Rational wrapper class (`satx/rational.py`).
 - `Unit(alu, key=None, block=None, value=None, bits=None, deep=None)` — Scalar bit-vector integer class (`satx/unit.py`).
@@ -2053,16 +2128,25 @@ This section enumerates all public callables exposed by:
 - `apply_different(lst, f, indexed=False)` — Apply `f` to all ordered pairs `i != j` (`satx/stdlib.py`).
 - `apply_dual(lst, f, indexed=False)` — Apply `f` to all unordered pairs `i < j` (`satx/stdlib.py`).
 - `apply_single(lst, f, indexed=False)` — Apply `f` to each element (`satx/stdlib.py`).
+- `as_fixed(u, scale)` ? Wrap `Unit` as `Fixed` (`satx/fixed.py`).
+- `as_int(f, policy="exact|floor|ceil|round")` ? Convert `Fixed` to integer `Unit` (`satx/fixed.py`).
 - `at_most_k(x, k)` — Cardinality-style constraint on bit-vector zeros (`satx/stdlib.py`).
 - `bits()` — Return engine bit-width (`satx/stdlib.py`).
 - `check_engine()` — Exit if engine not initialized (`satx/stdlib.py`).
 - `clear(lst)` — Clear `.value` on each `Unit` (`satx/stdlib.py`).
 - `combinations(lst, n)` — Element selection with repetition allowed (`satx/stdlib.py`).
-- `constant(value, bits=None)` — Constant `Unit` (bits arg ignored) (`satx/stdlib.py`).
+- `constant(value, bits=None, scale=None)` — Constant `Unit` (bits arg ignored) (`satx/stdlib.py`).
+- `current_cnf_path()` ? Return current CNF path (`satx/stdlib.py`).
 - `dot(xs, ys)` — Dot product helper (`satx/stdlib.py`).
 - `element(item, data)` — Constrain/return index of `item` in `data` (`satx/stdlib.py`).
-- `engine(bits=None, deep=None, info=False, cnf_path="", signed=False, simplify=True)` — Initialize/reset engine (`satx/stdlib.py`).
+- `engine(bits=None, deep=None, info=False, cnf_path=None, signed=False, simplify=True, fixed_default=False, fixed_scale=1, max_fixed_pow=8)` — Initialize/reset engine (`satx/stdlib.py`).
 - `factorial(x)` — Factorial encoding (`satx/stdlib.py`).
+- `fixed(scale=100, bits=None)` ? Fresh fixed-point variable (`satx/fixed.py`).
+- `fixed_advice(*vars, degree=2, expected_max=None)` ? Numeric scale/bit guidance (`satx/fixed.py`).
+- `fixed_const(x, scale=100)` ? Fixed-point constant (`satx/fixed.py`).
+- `fixed_div_exact(a, b, scale=None)` ? Exact fixed-point division helper (`satx/fixed.py`).
+- `fixed_mul_floor(a, b)` ? Fixed multiply with floor rescale (`satx/fixed.py`).
+- `fixed_mul_round(a, b)` ? Fixed multiply with round rescale (`satx/fixed.py`).
 - `flatten(mtx)` — Flatten a matrix into a list (`satx/stdlib.py`).
 - `gaussian(x=None, y=None)` — Gaussian constructor helper (`satx/stdlib.py`).
 - `hess_abstract(xs, oracle, f, g, log=None, fast=False, cycles=1, target=0)` — HESS optimizer (abstract) (`satx/stdlib.py`).
@@ -2070,10 +2154,10 @@ This section enumerates all public callables exposed by:
 - `hess_sequence(n, oracle, fast=False, cycles=1, target=0, seq=None)` — HESS optimizer (sequence) (`satx/stdlib.py`).
 - `hyper_loop(n, m)` — Nested-loop index generator (`satx/stdlib.py`).
 - `index(ith, data)` — Constrain/return `data[ith]` (`satx/stdlib.py`).
-- `integer(bits=None)` — Fresh integer variable (`satx/stdlib.py`).
+- `integer(bits=None, scale=None, force_int=False)` — Fresh integer variable (`satx/stdlib.py`).
 - `is_not_prime(p)` — Fermat-like non-prime constraint (`satx/stdlib.py`).
 - `is_prime(p)` — Fermat-like prime constraint (`satx/stdlib.py`).
-- `matrix(bits=None, dimensions=None, is_gaussian=False, is_rational=False)` — Matrix constructor (`satx/stdlib.py`).
+- `matrix(bits=None, dimensions=None, is_gaussian=False, is_rational=False, *, fixed=None, scale=None)` — Matrix constructor (`satx/stdlib.py`).
 - `matrix_permutation(lst, n)` — Cycle through flattened matrix by permutation (`satx/stdlib.py`).
 - `mul(xs, ys)` — Elementwise multiply helper (`satx/stdlib.py`).
 - `one_of(lst)` — Exact-one choice combinator (`satx/stdlib.py`).
@@ -2091,9 +2175,10 @@ This section enumerates all public callables exposed by:
 - `subsets(lst, k=None, complement=False)` — Selection bits + masked subset (`satx/stdlib.py`).
 - `switch(x, ith, neg=False)` — Bit-to-indicator helper (`satx/stdlib.py`).
 - `tensor(dimensions)` — Tensor/bit-array `Unit` (`satx/stdlib.py`).
+- `to_rational(f)` ? Convert `Fixed` to `Rational` (`satx/fixed.py`).
 - `values(lst, cleaner=None)` — Extract `.value` list (`satx/stdlib.py`).
-- `vector(bits=None, size=None, is_gaussian=False, is_rational=False)` — Vector constructor (`satx/stdlib.py`).
-- `version()` — Print system info banner (`satx/stdlib.py`).
+- `vector(bits=None, size=None, is_gaussian=False, is_rational=False, *, fixed=None, scale=None)` — Vector constructor (`satx/stdlib.py`).
+- `version()` — Print system info banner and return version string (`satx/stdlib.py`).
 
 ### 15.2 `satx.gcc` (documented subset, alphabetical)
 
@@ -2114,7 +2199,7 @@ Note: `satx.gcc` exposes additional helpers beyond this list; see `docs/gcc_cove
 ### 15.3 Coverage Audit
 
 Enumerated public symbol sets:
-- `satx` exposes 53 callables (49 stdlib functions + `Unit`, `ALU`, `Gaussian`, `Rational`): all listed in Section 15.1 and documented in Sections 2-14.
+- `satx` exposes 63 callables (stdlib + fixed helpers + `Unit`, `ALU`, `Gaussian`, `Rational`, `Fixed`): all listed in Section 15.1 and documented in Sections 2-14.
 - `satx.gcc` exposes 38 public helpers (excluding underscore-prefixed internals); Section 15.2 documents a subset. See `docs/gcc_coverage.md` and `satx/gcc.py` for the full list.
 
 Use case: rational constraints (Section 9).

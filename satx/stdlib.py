@@ -25,12 +25,16 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 The standard high level library for the SATX system.
 """
 
+import os
+import sys
+
 from .alu import *
 from .gaussian import Gaussian
 from .rational import Rational
 
 csp = None
 render = False
+VERSION = "0.3.9"
 
 
 def version():
@@ -38,8 +42,8 @@ def version():
     Print the information about the system.
     """
     print('SATX The constraint modeling language for SAT solvers')
-    print('Copyright (c) 2012-2022 Oscar Riveros. all rights reserved.')
-    print('[SATX]')
+    print('Copyright (c) 2012-2026 Oscar Riveros. all rights reserved.')
+    return VERSION
 
 
 def check_engine():
@@ -48,47 +52,135 @@ def check_engine():
         exit(0)
 
 
-def engine(bits=None, deep=None, info=False, cnf_path='', signed=False, simplify=True):
+def _derive_default_cnf_path():
+    candidate = None
+    try:
+        import __main__
+
+        candidate = getattr(__main__, '__file__', None)
+    except ImportError:  # pragma: no cover
+        candidate = None
+    if not candidate:
+        argv0 = sys.argv[0] if sys.argv else None
+        if argv0:
+            candidate = argv0
+    if not candidate:
+        base = 'satx'
+    else:
+        base = os.path.splitext(os.path.basename(candidate))[0] or 'satx'
+    return f'{base}.cnf'
+
+
+def current_cnf_path():
+    global csp
+    return None if csp is None else csp.cnf
+
+
+def _require_positive_int(name, value):
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(f"{name} must be a Python int, got {type(value).__name__}")
+    if value <= 0:
+        raise ValueError(f"{name} must be > 0, got {value}")
+    return value
+
+
+def engine(
+    bits=None,
+    deep=None,
+    info=False,
+    cnf_path=None,
+    signed=False,
+    simplify=True,
+    fixed_default=False,
+    fixed_scale=1,
+    max_fixed_pow=8,
+):
     """
     Initialize or reset the SATX system.
     :param bits: Implies an $[-2^{bits}, 2^{bits})$ search space.
     :param deep: For exponentials range.
     :param info: Print the information about the system.
-    :param cnf: Path to render the generated CNF.
+    :param cnf_path: Path to render the generated CNF. Defaults to '<script>.cnf'; pass '' to disable emitting.
     :param signed: Indicates use of signed integer engine
+    :param fixed_default: When True, satx.integer()/vector()/matrix() default to Fixed with fixed_scale.
+    :param fixed_scale: Default scale used when fixed_default is True.
+    :param max_fixed_pow: Maximum allowed exponent for Fixed ** k.
     """
     global csp
+    if cnf_path is None:
+        cnf_path = _derive_default_cnf_path()
+    fixed_scale = _require_positive_int("fixed_scale", fixed_scale)
+    max_fixed_pow = _require_positive_int("max_fixed_pow", max_fixed_pow)
     reset()
     csp = ALU(0 if not bits else bits, bits // 2 if not deep else deep, cnf_path)
     csp.signed = signed
     csp.simplify = simplify
+    csp.default_is_fixed = bool(fixed_default)
+    csp.default_scale = fixed_scale
+    csp.max_fixed_pow = max_fixed_pow
     if info:
         version()
 
 
-def integer(bits=None):
+def integer(bits=None, scale=None, force_int=False):
     """
     Correspond to an integer.
     :param bits: The bits for the integer.
-    :return: An instance of Integer.
+    :param scale: Optional fixed-point scale; when set, returns a satx.Fixed.
+    :param force_int: When True, always return a Unit (ignore fixed_default).
+    :return: An instance of Integer or Fixed.
     """
     global csp
     check_engine()
-    csp.variables.append(csp.int(size=bits))
-    return csp.variables[-1]
+    if not isinstance(force_int, bool):
+        raise TypeError(f"force_int must be a bool, got {type(force_int).__name__}")
+    if force_int and scale is not None:
+        raise ValueError("force_int cannot be used with scale")
+    if scale is None and not force_int and getattr(csp, "default_is_fixed", False):
+        scale = csp.default_scale
+    if scale is None:
+        csp.variables.append(csp.int(size=bits))
+        return csp.variables[-1]
+    _require_positive_int("scale", scale)
+    raw = csp.int(size=bits)
+    csp.variables.append(raw)
+    from .fixed import Fixed
+    return Fixed(raw, scale)
 
 
-def constant(value, bits=None):
+def _resolve_fixed_params(fixed, scale):
+    global csp
+    if fixed is not None and not isinstance(fixed, bool):
+        raise TypeError(f"fixed must be a bool or None, got {type(fixed).__name__}")
+    if scale is not None:
+        if fixed is False:
+            raise ValueError("scale cannot be used with fixed=False")
+        _require_positive_int("scale", scale)
+        return True, scale
+    if fixed is True:
+        return True, csp.default_scale
+    if fixed is False:
+        return False, None
+    if getattr(csp, "default_is_fixed", False):
+        return True, csp.default_scale
+    return False, None
+
+
+def constant(value, bits=None, scale=None):
     """
     Correspond to an constant.
     :param bits: The bits for the constant.
     :param value: The value of the constant.
+    :param scale: Optional fixed-point scale; when set, returns a satx.Fixed.
     :return: An instance of Constant.
     """
     global csp
     check_engine()
-    csp.variables.append(csp.int(size=bits, value=value))
-    return csp.variables[-1]
+    if scale is None:
+        csp.variables.append(csp.int(size=bits, value=value))
+        return csp.variables[-1]
+    from .fixed import fixed_const
+    return fixed_const(value, scale=scale)
 
 
 def subsets(lst, k=None, complement=False):
@@ -137,13 +229,15 @@ def subset(lst, k, empty=None, complement=False):
     return subset_
 
 
-def vector(bits=None, size=None, is_gaussian=False, is_rational=False):
+def vector(bits=None, size=None, is_gaussian=False, is_rational=False, *, fixed=None, scale=None):
     """
     A vector of integers.
     :param bits: The bit bits for each integer.
     :param size: The bits of the vector.
     :param is_gaussian: Indicate of is a Gaussian Integers vector.
     :param is_rational: Indicate of is a Rational vector.
+    :param fixed: When True/False, override fixed_default for this vector.
+    :param scale: Fixed-point scale (implies fixed=True).
     :return: An instance of vector.
     """
     global csp
@@ -152,12 +246,16 @@ def vector(bits=None, size=None, is_gaussian=False, is_rational=False):
         return [rational() for _ in range(size)]
     if is_gaussian:
         return [gaussian() for _ in range(size)]
+    use_fixed, fixed_scale = _resolve_fixed_params(fixed, scale)
     array_ = csp.array(size=bits, dimension=size)
     csp.variables += array_
+    if use_fixed:
+        from .fixed import Fixed
+        return [Fixed(item, fixed_scale) for item in array_]
     return array_
 
 
-def matrix(bits=None, dimensions=None, is_gaussian=False, is_rational=False):
+def matrix(bits=None, dimensions=None, is_gaussian=False, is_rational=False, *, fixed=None, scale=None):
     """
     A matrix of integers.
     :param bits: The bit bits for each integer.
@@ -169,24 +267,33 @@ def matrix(bits=None, dimensions=None, is_gaussian=False, is_rational=False):
     global csp
     check_engine()
     matrix_ = []
+    use_fixed, fixed_scale = _resolve_fixed_params(fixed, scale)
     for i in range(dimensions[0]):
         row = []
         for j in range(dimensions[1]):
             if is_rational:
-                x = integer(bits=bits)
-                y = integer(bits=bits)
+                x = integer(bits=bits, force_int=True)
+                y = integer(bits=bits, force_int=True)
                 csp.variables.append(x)
                 csp.variables.append(y)
                 row.append(Rational(x, y))
+                row.append(csp.variables[-1])
             elif is_gaussian:
-                x = integer(bits=bits)
-                y = integer(bits=bits)
+                x = integer(bits=bits, force_int=True)
+                y = integer(bits=bits, force_int=True)
                 csp.variables.append(x)
                 csp.variables.append(y)
                 row.append(Gaussian(x, y))
+                row.append(csp.variables[-1])
             else:
-                csp.variables.append(integer(bits=bits))
-            row.append(csp.variables[-1])
+                if use_fixed:
+                    raw = csp.int(size=bits)
+                    csp.variables.append(raw)
+                    from .fixed import Fixed
+                    row.append(Fixed(raw, fixed_scale))
+                else:
+                    csp.variables.append(integer(bits=bits, force_int=True))
+                    row.append(csp.variables[-1])
         matrix_.append(row)
     return matrix_
 
@@ -200,8 +307,8 @@ def matrix_permutation(lst, n):
     """
     global csp
     check_engine()
-    xs = vector(size=n)
-    ys = vector(size=n)
+    xs = vector(size=n, fixed=False)
+    ys = vector(size=n, fixed=False)
     csp.apply(xs, single=lambda x: 0 <= x < n)
     csp.apply(xs, dual=lambda a, b: a != b)
     csp.indexing(xs, ys, lst)
@@ -216,8 +323,8 @@ def permutations(lst, n):
     :return: (indexes, values)
     """
     check_engine()
-    xs = vector(size=n)
-    ys = vector(size=n)
+    xs = vector(size=n, fixed=False)
+    ys = vector(size=n, fixed=False)
     for i in range(n):
         assert element(ys[i], lst) == xs[i]
     apply_single(xs, lambda a: 0 <= a < n)
@@ -233,8 +340,8 @@ def combinations(lst, n):
     :return: (indexes, values)
     """
     check_engine()
-    xs = vector(size=n)
-    ys = vector(size=n)
+    xs = vector(size=n, fixed=False)
+    ys = vector(size=n, fixed=False)
     for i in range(n):
         assert element(ys[i], lst) == xs[i]
     return xs, ys
@@ -247,8 +354,14 @@ def all_binaries(lst):
     :return:
     """
     check_engine()
-    global csp
-    csp.apply(lst, single=lambda arg: 0 <= arg <= 1)
+    for item in lst:
+        raw = getattr(item, "raw", None)
+        scale = getattr(item, "scale", None)
+        if isinstance(raw, Unit) and isinstance(scale, int):
+            raw.is_in([0, scale])
+        else:
+            target = raw if isinstance(raw, Unit) else item
+            assert 0 <= target <= 1
 
 
 def switch(x, ith, neg=False):
@@ -474,7 +587,7 @@ def element(item, data):
     """
     global csp
     check_engine()
-    ith = integer()
+    ith = integer(force_int=True)
     csp.element(ith, data, item)
     csp.variables.append(ith)
     return csp.variables[-1]
@@ -489,7 +602,7 @@ def index(ith, data):
     """
     global csp
     check_engine()
-    item = integer()
+    item = integer(force_int=True)
     csp.element(ith, data, item)
     csp.variables.append(item)
     return csp.variables[-1]
@@ -504,7 +617,7 @@ def gaussian(x=None, y=None):
     """
     check_engine()
     if x is None and y is None:
-        return Gaussian(integer(), integer())
+        return Gaussian(integer(force_int=True), integer(force_int=True))
     return Gaussian(x, y)
 
 
@@ -517,7 +630,7 @@ def rational(x=None, y=None):
     """
     check_engine()
     if x is None and y is None:
-        return Rational(integer(), integer())
+        return Rational(integer(force_int=True), integer(force_int=True))
     return Rational(x, y)
 
 
@@ -873,7 +986,8 @@ def clear(lst):
     :param lst: The coherent list of integers to clear.
     """
     for x in lst:
-        x.clear()
+        target = getattr(x, "raw", x)
+        target.clear()
 
 
 def rotate(x, k):
@@ -883,7 +997,7 @@ def rotate(x, k):
     :param k: k-places.
     :return: a rotated integer.
     """
-    v = integer()
+    v = integer(force_int=True)
     for i in range(bits()):
         assert x[[(i + k) % bits()]](0, 1) == v[[i]](0, 1)
     return v

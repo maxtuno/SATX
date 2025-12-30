@@ -31,6 +31,7 @@ satx.reset()
 - [G) Linear algebra / Gaussian helpers (from gaussian.py)](#g-linear-algebra--gaussian-helpers-from-gaussianpy)
 - [H) gcc.py domain recipes](#h-gccpy-domain-recipes)
 - [I) Optimization patterns (iterative bounding)](#i-optimization-patterns-iterative-bounding)
+- [J) Fixed-point decimals (from fixed.py)](#j-fixed-point-decimals-from-fixedpy)
 - [Appendix](#appendix)
 
 ## A) Boolean & CNF-ish modeling patterns (bridge layer)
@@ -1596,11 +1597,137 @@ assert best == -2
 **Variants.**
 - Lexicographic optimization for vectors: optimize `x0`, fix it, then optimize `x1`, etc. (build/rebuild between stages to avoid CNF growth).
 
+## J) Fixed-point decimals (from fixed.py)
+
+SATX has no floating-point. When you need decimal quantities (money, measurements), use fixed-point encoding via `satx.Fixed`:
+
+- `value = raw / scale`
+- `raw` is a SATX integer (`Unit`, fixed-width bit-vector)
+- `scale` is a positive Python `int` (typically `10**k`, e.g. `100` for cents)
+
+### J1. Linear money model with cents (scale=100)
+
+**Problem statement.** Model dollar-like amounts with 2 decimal places and linear sum constraints.
+
+**Minimal code.**
+
+```python
+import satx
+from fractions import Fraction
+
+satx.engine(bits=16, cnf_path="tmp_j1_cents.cnf")
+
+item1 = satx.fixed(scale=100)
+item2 = satx.fixed(scale=100)
+total = satx.fixed(scale=100)
+
+assert satx.fixed_const(0, scale=100) <= item1 <= satx.fixed_const(7.00, scale=100)
+assert satx.fixed_const(0, scale=100) <= item2 <= satx.fixed_const(7.00, scale=100)
+
+assert total == satx.fixed_const(10.00, scale=100)
+assert item1 + item2 == total
+
+assert satx.satisfy(solver="slime")
+
+assert total.value == Fraction(10, 1)
+assert item1.value + item2.value == total.value
+```
+
+Equivalent construction using `satx.integer(scale=100)` (same semantics, returns `satx.Fixed`):
+
+```python
+import satx
+
+satx.engine(bits=16, cnf_path="tmp_j1_cents_integer.cnf")
+
+item1 = satx.integer(scale=100)
+item2 = satx.integer(scale=100)
+total = satx.integer(scale=100)
+
+assert item1 + item2 == total
+assert satx.satisfy(solver="slime")
+```
+
+**Scaling notes / pitfalls.**
+- All operands must share the same `scale=`; scale mismatches raise `ValueError`.
+- For range constraints, use `satx.fixed_const(...)` bounds (or constrain `item.raw` directly).
+
+### J2. Multiply with exact rescale (no hidden rounding)
+
+**Problem statement.** Constrain `1.25 * 2.00 == 2.50` exactly (cents scale), without rounding.
+
+**Minimal code.**
+
+```python
+import satx
+from fractions import Fraction
+
+satx.engine(bits=16, cnf_path="tmp_j2_mul.cnf")
+
+a = satx.fixed_const(1.25, scale=100)
+b = satx.fixed_const(2.00, scale=100)
+c = satx.fixed_const(2.50, scale=100)
+
+assert a * b == c
+assert satx.satisfy(solver="slime")
+
+assert a.value == Fraction(5, 4)
+assert b.value == Fraction(2, 1)
+assert c.value == Fraction(5, 2)
+```
+
+**Scaling notes / pitfalls.**
+- `Fixed.__mul__` is exact: it enforces `A*B == R*scale` (so divisibility is required; otherwise UNSAT).
+- `<<` / `>>` are not bit shifts in SATX; do not use them for decimal scaling.
+- `Fixed` does not implement `/`; use `satx.fixed_div_exact(a, b)` for explicit division.
+
+### J3. Scale advice (numeric, no output)
+
+Use `satx.fixed_advice(...)` to get numeric guidance about scale vs bit-width.
+
+```python
+import satx
+
+satx.engine(bits=12, cnf_path="tmp_j3_advice.cnf")
+price = satx.integer(scale=100)
+advice = satx.fixed_advice(price, degree=2, expected_max=100.0)
+```
+
+### J4. Global fixed default mode
+
+Use a fixed-point default for all integers/vectors unless explicitly overridden.
+
+```python
+import satx
+
+satx.engine(bits=12, fixed_default=True, fixed_scale=100, cnf_path="tmp_j4_fixed_default.cnf")
+x = satx.integer()      # Fixed(scale=100)
+y = satx.vector(size=3) # list[Fixed]
+
+assert x >= 0
+assert satx.satisfy(solver="slime")
+```
+
+### J5. Override to Unit
+
+When `fixed_default=True`, you can explicitly request `Unit` or an alternate scale.
+
+```python
+import satx
+
+satx.engine(bits=12, fixed_default=True, fixed_scale=100, cnf_path="tmp_j5_fixed_override.cnf")
+x = satx.integer(force_int=True)           # Unit, even in fixed_default mode
+z = satx.vector(size=3, fixed=True, scale=1000)  # Fixed with explicit scale
+
+assert x == 3
+assert satx.satisfy(solver="slime")
+```
+
 ## Appendix
 
 ### Modeling checklist
 
-- Initialize once per problem: `satx.engine(bits=..., deep=..., cnf_path=..., signed=...)`.
+- Initialize once per problem: `satx.engine(bits=..., deep=..., cnf_path=..., signed=..., fixed_default=..., fixed_scale=..., max_fixed_pow=...)`.
 - Declare variables using SATX constructors (`satx.integer`, `satx.vector`, `satx.tensor`, …).
 - Bound every variable with `assert` (especially before `*`, `**`, `%`, `//`, `pow`).
 - Write constraints as expressions that get *evaluated* (usually via `assert ...`); avoid Python control flow (`if`, `and`, `or`).
@@ -1663,7 +1790,7 @@ This section enumerates all user-facing callables exported by `satx` (52) and `s
 - `satx.constant(value, bits=None)` — create a constant `Unit` (`satx/stdlib.py`). Example: [C](#c-integer-feasibility-diophantine--non-linear).
 - `satx.dot(xs, ys)` — dot product helper (`satx/stdlib.py`). Example: [B](#b-integer-feasibility-diophantine--linear).
 - `satx.element(item, data)` — return index variable for `item` in `data` (`satx/stdlib.py`). Example: [A](#a-boolean--cnf-ish-modeling-patterns-bridge-layer).
-- `satx.engine(bits=None, deep=None, info=False, cnf_path='', signed=False, simplify=False)` — initialize/reset global engine (`satx/stdlib.py`). Example: [Template](#template-copypaste).
+- `satx.engine(bits=None, deep=None, info=False, cnf_path=None, signed=False, simplify=True, fixed_default=False, fixed_scale=1, max_fixed_pow=8)` — initialize/reset global engine (`satx/stdlib.py`). Example: [Template](#template-copypaste).
 - `satx.factorial(x)` — factorial encoding for small `x` (`satx/stdlib.py`). Example: [D](#d-exponential--power-constraints).
 - `satx.flatten(mtx)` — pure-Python flatten helper (no SAT constraints) (`satx/stdlib.py`). No dedicated recipe; see [Modeling checklist](#modeling-checklist).
 - `satx.gaussian(x=None, y=None)` — Gaussian constructor helper (`satx/stdlib.py`). Example: [G](#g-linear-algebra--gaussian-helpers-from-gaussianpy).
@@ -1695,7 +1822,7 @@ This section enumerates all user-facing callables exported by `satx` (52) and `s
 - `satx.tensor(dimensions)` — create a tensor/bit-array `Unit` (`satx/stdlib.py`). Example: [A](#a-boolean--cnf-ish-modeling-patterns-bridge-layer).
 - `satx.values(lst, cleaner=None)` — extract `.value` list (optional filter) (`satx/stdlib.py`). Example: [H](#h-gccpy-domain-recipes).
 - `satx.vector(bits=None, size=None, is_gaussian=False, is_rational=False)` — construct a vector of ints/gaussians/rationals (`satx/stdlib.py`). Example: [B](#b-integer-feasibility-diophantine--linear).
-- `satx.version()` — print system banner (`satx/stdlib.py`). No SAT example; see [Modeling checklist](#modeling-checklist).
+- `satx.version()` — print system banner and return version string (`satx/stdlib.py`). No SAT example; see [Modeling checklist](#modeling-checklist).
 
 **`satx.gcc` (from `satx/gcc.py`)**
 - `satx.gcc.abs_val(x, y)` — constrain `y >= 0` and `abs(x) == y` (as implemented). Example: [H](#h-gccpy-domain-recipes).

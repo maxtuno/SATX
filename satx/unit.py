@@ -21,6 +21,8 @@ OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
+from decimal import Decimal
+from fractions import Fraction
 from numbers import Number
 
 
@@ -71,11 +73,27 @@ class Unit(Number):
             assert self != element
         return self
 
+    def _fixed_info(self, other, op=None):
+        raw = getattr(other, "raw", None)
+        scale = getattr(other, "scale", None)
+        if isinstance(raw, Unit) and isinstance(scale, int):
+            if raw.alu is not self.alu:
+                if op:
+                    raise ValueError(f"cannot {op} values from different SATX engines")
+                raise ValueError("cannot operate on values from different SATX engines")
+            return raw, scale
+        return None
+
     def __add__(self, other):
         if self.value is not None:
             if isinstance(other, Unit):
                 return self.value + other.value
             return self.value + other
+        fixed_info = self._fixed_info(other, "+")
+        if fixed_info is not None:
+            raw, scale = fixed_info
+            from .fixed import Fixed
+            return Fixed((self * scale) + raw, scale)
         output_block = self.alu.create_block()
         if isinstance(other, Unit):
             self.alu.bv_rca_gate(self.block, other.block, self.alu.true, output_block, None if self.alu.signed else self.alu.true)
@@ -105,6 +123,15 @@ class Unit(Number):
                 return self.value == other.value
             else:
                 return self.value == other
+        fixed_info = self._fixed_info(other, "compare")
+        if fixed_info is not None:
+            raw, scale = fixed_info
+            if self.value is not None and raw.value is not None:
+                return (self.value * scale) == raw.value
+            scaled = self * scale
+            lhs_block = scaled.block if isinstance(scaled, Unit) else self.alu.create_constant(scaled)
+            self.alu.bv_eq_gate(lhs_block, raw.block, self.alu.false)
+            return self
         if isinstance(other, Unit):
             self.alu.bv_eq_gate(self.block, other.block, self.alu.false)
         else:
@@ -151,6 +178,14 @@ class Unit(Number):
         return Unit(self.alu, value=other) % self
 
     def __ne__(self, other):
+        fixed_info = self._fixed_info(other, "compare")
+        if fixed_info is not None:
+            raw, scale = fixed_info
+            if self.value is not None and raw.value is not None:
+                return (self.value * scale) != raw.value
+            scaled = self * scale
+            lhs_block = scaled.block if isinstance(scaled, Unit) else self.alu.create_constant(scaled)
+            return self.alu.bv_eq_gate(lhs_block, raw.block, self.alu.true)
         if isinstance(other, Unit):
             return self.alu.bv_eq_gate(self.block, other.block, self.alu.true)
         return self.alu.bv_eq_gate(self.block, self.alu.create_constant(other), self.alu.true)
@@ -160,6 +195,17 @@ class Unit(Number):
             if isinstance(other, Unit):
                 return self.value * other.value
             return self.value * other
+        fixed_info = self._fixed_info(other, "*")
+        if fixed_info is not None:
+            raw, scale = fixed_info
+            from .fixed import Fixed
+            return Fixed(self * raw, scale)
+        if isinstance(other, (float, Decimal, Fraction)) and getattr(self.alu, "default_is_fixed", False):
+            from .fixed import Fixed, fixed_const
+            const = fixed_const(other, scale=getattr(self.alu, "default_scale", 1))
+            if const.raw.alu is not self.alu:
+                raise ValueError("cannot multiply values from different SATX engines")
+            return Fixed(self * const.raw, const.scale)
         if self.alu.signed:
             def _sext(block, width):
                 if len(block) >= width:
@@ -291,6 +337,11 @@ class Unit(Number):
                 return self.value - other.value
             else:
                 return self.value - other
+        fixed_info = self._fixed_info(other, "-")
+        if fixed_info is not None:
+            raw, scale = fixed_info
+            from .fixed import Fixed
+            return Fixed((self * scale) - raw, scale)
         output_block = self.alu.create_block()
         if isinstance(other, Unit):
             output_block = self.alu.bv_rcs_gate(self.block, other.block, output_block)
@@ -322,6 +373,16 @@ class Unit(Number):
                 return self.value < other.value
             else:
                 return self.value < other
+        fixed_info = self._fixed_info(other, "compare")
+        if fixed_info is not None:
+            raw, scale = fixed_info
+            if self.value is not None and raw.value is not None:
+                return (self.value * scale) < raw.value
+            scaled = self * scale
+            lhs_block = scaled.block if isinstance(scaled, Unit) else self.alu.create_constant(scaled)
+            bvc = self.alu.bv_sle_gate if self.alu.signed else self.alu.bv_ule_gate
+            bvc(raw.block, lhs_block, self.alu.true)
+            return self
         bvc = self.alu.bv_sle_gate if self.alu.signed else self.alu.bv_ule_gate
         if isinstance(other, Unit):
             bvc(other.block, self.block, self.alu.true)
@@ -335,6 +396,16 @@ class Unit(Number):
                 return self.value <= other.value
             else:
                 return self.value <= other
+        fixed_info = self._fixed_info(other, "compare")
+        if fixed_info is not None:
+            raw, scale = fixed_info
+            if self.value is not None and raw.value is not None:
+                return (self.value * scale) <= raw.value
+            scaled = self * scale
+            lhs_block = scaled.block if isinstance(scaled, Unit) else self.alu.create_constant(scaled)
+            bvc = self.alu.bv_sle_gate if self.alu.signed else self.alu.bv_ule_gate
+            bvc(lhs_block, raw.block, self.alu.false)
+            return self
         bvc = self.alu.bv_sle_gate if self.alu.signed else self.alu.bv_ule_gate
         if isinstance(other, Unit):
             bvc(self.block, other.block, self.alu.false)
@@ -348,6 +419,16 @@ class Unit(Number):
                 return self.value > other.value
             else:
                 return self.value > other
+        fixed_info = self._fixed_info(other, "compare")
+        if fixed_info is not None:
+            raw, scale = fixed_info
+            if self.value is not None and raw.value is not None:
+                return (self.value * scale) > raw.value
+            scaled = self * scale
+            lhs_block = scaled.block if isinstance(scaled, Unit) else self.alu.create_constant(scaled)
+            bvc = self.alu.bv_sle_gate if self.alu.signed else self.alu.bv_ule_gate
+            bvc(lhs_block, raw.block, self.alu.true)
+            return self
         bvc = self.alu.bv_sle_gate if self.alu.signed else self.alu.bv_ule_gate
         if isinstance(other, Unit):
             bvc(self.block, other.block, self.alu.true)
@@ -361,6 +442,16 @@ class Unit(Number):
                 return self.value >= other.value
             else:
                 return self.value >= other
+        fixed_info = self._fixed_info(other, "compare")
+        if fixed_info is not None:
+            raw, scale = fixed_info
+            if self.value is not None and raw.value is not None:
+                return (self.value * scale) >= raw.value
+            scaled = self * scale
+            lhs_block = scaled.block if isinstance(scaled, Unit) else self.alu.create_constant(scaled)
+            bvc = self.alu.bv_sle_gate if self.alu.signed else self.alu.bv_ule_gate
+            bvc(raw.block, lhs_block, self.alu.false)
+            return self
         bvc = self.alu.bv_sle_gate if self.alu.signed else self.alu.bv_ule_gate
         if isinstance(other, Unit):
             bvc(other.block, self.block, self.alu.false)
