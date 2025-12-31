@@ -316,11 +316,17 @@ else:
     print("UNSAT")
 ```
 
+##### Note: 
+$$ 
+2^{2^{3}} + 2^{2^{3}} = 2^{9} 
+$$
+
 #### Remarks
 
 * The presence of negative bases introduces parity effects that allow nontrivial solutions even for large exponents.
 * In the unrestricted (unbounded) setting, the existence of nontrivial solutions is largely open.
 * This formulation serves as a **benchmark problem** for studying the limits of SAT solvers on arithmetic with extreme nonlinear growth.
+
 
 ### Facility location / assignment (small MIP-style example)
 
