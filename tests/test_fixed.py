@@ -1,8 +1,28 @@
+"""
+Copyright (c) 2012-2026 Oscar Riveros
+
+SATX is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of
+the License, or (at your option) any later version.
+
+SATX is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+Commercial licensing options are available.
+See COMMERCIAL.md for details.
+"""
 from fractions import Fraction
 import warnings
 
 import pytest
 import satx
+import satx.stdlib as stdlib
 from satx.unit import Unit
 
 
@@ -326,3 +346,114 @@ def test_fixed_fuzz_smoke():
                 raise AssertionError(
                     f"fuzz crash idx={idx} bits={bits} signed={signed} scale={scale} op={op}"
                 ) from exc
+
+
+def test_fixed_add_rescaled_lcm():
+    satx.engine(bits=16, cnf_path="tests/tmp_fixed_add_rescaled.cnf")
+    a = satx.fixed_const(1.2, scale=10)
+    b = satx.fixed_const(0.03, scale=1000)
+    total = satx.fixed_add_rescaled(a, b)
+    assert isinstance(total, satx.Fixed)
+    assert total.scale == 1000
+    assert total == satx.fixed_const(1.23, scale=1000)
+    assert satx.satisfy(solver="slime")
+    assert total.value == Fraction(123, 100)
+    with pytest.raises(ValueError, match="target_scale"):
+        satx.fixed_rescale_to(a, 3)
+
+
+def test_fixed_mul_reuse_reduces_cnf():
+    satx.engine(bits=8, cnf_path="tests/tmp_fixed_mul_cache.cnf")
+    a = satx.fixed(scale=10)
+    b = satx.fixed(scale=10)
+    _ = a * b
+    vars_after_first = stdlib.csp.number_of_variables
+    clauses_after_first = stdlib.csp.number_of_clauses
+    _ = a * b
+    vars_after_second = stdlib.csp.number_of_variables
+    clauses_after_second = stdlib.csp.number_of_clauses
+    c = satx.fixed(scale=10)
+    d = satx.fixed(scale=10)
+    vars_before_third = stdlib.csp.number_of_variables
+    clauses_before_third = stdlib.csp.number_of_clauses
+    _ = c * d
+    vars_after_third = stdlib.csp.number_of_variables
+    clauses_after_third = stdlib.csp.number_of_clauses
+    assert (vars_after_second - vars_after_first) < (vars_after_third - vars_before_third)
+    assert (clauses_after_second - clauses_after_first) < (clauses_after_third - clauses_before_third)
+
+
+def test_unit_fixed_comparison_helpers():
+    satx.engine(bits=8, cnf_path="tests/tmp_unit_fixed_le.cnf")
+    u = satx.integer(force_int=True)
+    x = satx.integer(scale=10)
+    assert x == satx.fixed_const(2.5, scale=10)
+    assert satx.unit_le_fixed(u, x)
+    assert u == 2
+    assert satx.satisfy(solver="slime")
+    assert u.value == 2
+    assert u.value <= x.value
+
+    satx.engine(bits=8, cnf_path="tests/tmp_unit_fixed_ge.cnf")
+    u = satx.integer(force_int=True)
+    x = satx.integer(scale=10)
+    assert x == satx.fixed_const(1.0, scale=10)
+    assert satx.unit_ge_fixed(u, x)
+    assert u == 2
+    assert satx.satisfy(solver="slime")
+    assert u.value == 2
+    assert u.value >= x.value
+
+    satx.engine(bits=8, cnf_path="tests/tmp_unit_fixed_eq.cnf")
+    u = satx.integer(force_int=True)
+    x = satx.integer(scale=10)
+    assert x == satx.fixed_const(3.0, scale=10)
+    assert satx.unit_eq_fixed(u, x)
+    assert satx.satisfy(solver="slime")
+    assert u.value == 3
+
+
+def test_fixed_bounds_with_assumptions():
+    satx.engine(bits=4, signed=True, cnf_path="tests/tmp_fixed_bounds.cnf")
+    x = satx.integer(scale=1)
+    min_v, max_v = satx.fixed_bounds(x)
+    assert min_v == Fraction(-8, 1)
+    assert max_v == Fraction(7, 1)
+    y = satx.integer(scale=1)
+    z = x + y
+    z_min, z_max = satx.fixed_bounds(z)
+    assert z_min == min_v
+    assert z_max == max_v
+    min_s, max_s = satx.fixed_bounds(x, assumptions={"min": -2, "max": 3})
+    assert min_s == Fraction(-2, 1)
+    assert max_s == Fraction(3, 1)
+    with pytest.raises(ValueError, match="inconsistent"):
+        satx.fixed_bounds(x, assumptions={"min": 10})
+
+
+def test_fixed_advice_explain_opt_in():
+    satx.engine(bits=10, signed=True, cnf_path="tests/tmp_fixed_advice_explain.cnf")
+    x = satx.integer(scale=8)
+    base = satx.fixed_advice(x, degree=2)
+    explained = satx.fixed_advice(x, degree=2, explain=True)
+    assert "explain" not in base
+    assert "explain" in explained
+    assert base["bits"] == explained["bits"]
+    assert base["signed"] == explained["signed"]
+    assert base["scales"] == explained["scales"]
+    assert "raw_max_abs" in explained["explain"]
+    assert "safe_mul_value_max" in explained["explain"]
+
+
+def _enumerate_fixed_values(cnf_path):
+    satx.engine(bits=2, signed=False, cnf_path=cnf_path)
+    x = satx.fixed(scale=1)
+    assert x >= 1
+    return [model[0] for model in satx.enumerate_models_fixed([x])]
+
+
+def test_enumerate_models_fixed_deterministic():
+    first = _enumerate_fixed_values("tests/tmp_fixed_enum_1.cnf")
+    second = _enumerate_fixed_values("tests/tmp_fixed_enum_2.cnf")
+    assert first == second
+    assert set(first) == {Fraction(1, 1), Fraction(2, 1), Fraction(3, 1)}

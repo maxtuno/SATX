@@ -1,24 +1,21 @@
 """
-Copyright (c) 2012-2021 Oscar Riveros [https://twitter.com/maxtuno].
+Copyright (c) 2012–2026 Oscar Riveros
 
-Permission is hereby granted, free of charge, to any person obtaining
-a copy of this software and associated documentation files (the
-"Software"), to deal in the Software without restriction, including
-without limitation the rights to use, copy, modify, merge, publish,
-distribute, sublicense, and/or sell copies of the Software, and to
-permit persons to whom the Software is furnished to do so, subject to
-the following conditions:
+SATX is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of
+the License, or (at your option) any later version.
 
-The above copyright notice and this permission notice shall be
-included in all copies or substantial portions of the Software.
+SATX is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+Commercial licensing options are available.
+See COMMERCIAL.md for details.
 """
 
 """
@@ -34,7 +31,7 @@ from .rational import Rational
 
 csp = None
 render = False
-VERSION = "0.3.9"
+VERSION = "0.4.0"
 
 
 def version():
@@ -109,10 +106,16 @@ def engine(
     global csp
     if cnf_path is None:
         cnf_path = _derive_default_cnf_path()
+    if bits is None:
+        bits = 32
+    bits = _require_positive_int("bits", bits)
+    if deep is None:
+        deep = bits // 2
+    deep = _require_positive_int("deep", deep)
     fixed_scale = _require_positive_int("fixed_scale", fixed_scale)
     max_fixed_pow = _require_positive_int("max_fixed_pow", max_fixed_pow)
     reset()
-    csp = ALU(0 if not bits else bits, bits // 2 if not deep else deep, cnf_path)
+    csp = ALU(bits, deep, cnf_path)
     csp.signed = signed
     csp.simplify = simplify
     csp.default_is_fixed = bool(fixed_default)
@@ -181,6 +184,50 @@ def constant(value, bits=None, scale=None):
         return csp.variables[-1]
     from .fixed import fixed_const
     return fixed_const(value, scale=scale)
+
+
+def unit_le_fixed(u, x):
+    from .fixed import Fixed
+    if not isinstance(u, Unit) or not isinstance(x, Fixed):
+        raise TypeError("unit_le_fixed expects (Unit, Fixed)")
+    if u.alu is not x.raw.alu:
+        raise ValueError("cannot compare values from different SATX engines")
+    if u.value is not None and x.raw.value is not None:
+        return u.value <= x.value
+    scaled = u * x.scale
+    lhs_block = scaled.block if isinstance(scaled, Unit) else u.alu.create_constant(scaled)
+    bvc = u.alu.bv_sle_gate if u.alu.signed else u.alu.bv_ule_gate
+    bvc(lhs_block, x.raw.block, u.alu.false)
+    return u
+
+
+def unit_ge_fixed(u, x):
+    from .fixed import Fixed
+    if not isinstance(u, Unit) or not isinstance(x, Fixed):
+        raise TypeError("unit_ge_fixed expects (Unit, Fixed)")
+    if u.alu is not x.raw.alu:
+        raise ValueError("cannot compare values from different SATX engines")
+    if u.value is not None and x.raw.value is not None:
+        return u.value >= x.value
+    scaled = u * x.scale
+    lhs_block = scaled.block if isinstance(scaled, Unit) else u.alu.create_constant(scaled)
+    bvc = u.alu.bv_sle_gate if u.alu.signed else u.alu.bv_ule_gate
+    bvc(x.raw.block, lhs_block, u.alu.false)
+    return u
+
+
+def unit_eq_fixed(u, x):
+    from .fixed import Fixed
+    if not isinstance(u, Unit) or not isinstance(x, Fixed):
+        raise TypeError("unit_eq_fixed expects (Unit, Fixed)")
+    if u.alu is not x.raw.alu:
+        raise ValueError("cannot compare values from different SATX engines")
+    if u.value is not None and x.raw.value is not None:
+        return u.value == x.value
+    scaled = u * x.scale
+    lhs_block = scaled.block if isinstance(scaled, Unit) else u.alu.create_constant(scaled)
+    u.alu.bv_eq_gate(lhs_block, x.raw.block, u.alu.false)
+    return u
 
 
 def subsets(lst, k=None, complement=False):
@@ -274,17 +321,11 @@ def matrix(bits=None, dimensions=None, is_gaussian=False, is_rational=False, *, 
             if is_rational:
                 x = integer(bits=bits, force_int=True)
                 y = integer(bits=bits, force_int=True)
-                csp.variables.append(x)
-                csp.variables.append(y)
                 row.append(Rational(x, y))
-                row.append(csp.variables[-1])
             elif is_gaussian:
                 x = integer(bits=bits, force_int=True)
                 y = integer(bits=bits, force_int=True)
-                csp.variables.append(x)
-                csp.variables.append(y)
                 row.append(Gaussian(x, y))
-                row.append(csp.variables[-1])
             else:
                 if use_fixed:
                     raw = csp.int(size=bits)
@@ -1033,9 +1074,69 @@ def satisfy(solver, params='', log=False):
     """
     global csp, render
     import subprocess
+    import tempfile
+    import uuid
     check_engine()
     if csp.cnf == '':
-        raise Exception('CNF path not set.')
+        base = os.path.join(tempfile.gettempdir(), f"satx_{uuid.uuid4().hex}")
+        cnf_path = f"{base}.cnf"
+        mod_path = f"{base}.mod"
+        try:
+            with open(cnf_path, 'w', encoding="utf8", errors='ignore') as file:
+                for clause in getattr(csp, "_cnf_clauses", []):
+                    file.write(' '.join(list(map(str, clause))) + ' 0\n')
+
+            header = 'p cnf {} {}'.format(csp.number_of_variables, csp.number_of_clauses).rstrip('\r\n')
+            with open(cnf_path, 'r+', encoding="utf8", errors='ignore') as file:
+                content = file.read()
+                file.seek(0, 0)
+                file.write(header + '\n' + content)
+                file.truncate()
+
+            with open(mod_path, 'w', encoding="utf8", errors='ignore') as file:
+                proc = subprocess.Popen('{0} {1}.cnf {2}'.format(solver, base, params), shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                for stdout_line in iter(proc.stdout.readline, ''):
+                    if not stdout_line:
+                        break
+                    try:
+                        line = stdout_line.decode()
+                        file.write(line)
+                        if log:
+                            print(line, end='')
+                    except:
+                        pass
+                proc.stdout.close()
+
+            with open(mod_path, 'r') as mod:
+                lines = ''
+                for line in mod.readlines():
+                    if line.startswith('v '):
+                        lines += line.strip('v ').strip('\n') + ' '
+                if len(lines) > 0:
+                    model = list(map(int, lines.strip(' ').split(' ')))
+                    for arg in csp.variables:
+                        if isinstance(arg, Unit):
+                            ds = ''.join(map(str, [int(model[abs(bit) - 1] * bit > 0) for bit in arg.block[::-1]]))
+                            if csp.signed:
+                                if ds[0] == '1':
+                                    arg.value = -int(''.join(['0' if d == '1' else '1' for d in ds[1:]]), 2) - 1
+                                else:
+                                    arg.value = int(ds[1:], 2)
+                            else:
+                                arg.value = int(ds, 2)
+                            del arg.bin[:]
+                    block_clause = [-int(literal) for literal in model]
+                    if getattr(csp, "_cnf_clauses", None) is not None:
+                        csp._cnf_clauses.append(block_clause)
+                    csp.number_of_clauses += 1
+                    return True
+            return False
+        finally:
+            for path in (cnf_path, mod_path):
+                try:
+                    os.remove(path)
+                except Exception:
+                    pass
     if '.' not in csp.cnf:
         raise Exception('CNF has no extension.')
     try:

@@ -39,6 +39,9 @@ pip install git+https://github.com/maxtuno/SATX.git
 - Math cookbook: `docs/cookbook_math.md`
 - Fixed-point release notes: `docs/fixed_point_release_notes.md`
 
+## Roadmap
+See 'docs/ROADMAP.md' for scope, milestones, and what “verification” means in SATX (SAT/UNSAT + certificates).
+
 ## Prerequisites
 
 SATX emits CNF and calls an external SAT solver.

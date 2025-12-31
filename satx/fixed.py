@@ -1,4 +1,24 @@
 """
+Copyright (c) 2012–2026 Oscar Riveros
+
+SATX is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of
+the License, or (at your option) any later version.
+
+SATX is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+Commercial licensing options are available.
+See COMMERCIAL.md for details.
+"""
+
+"""
 Fixed-point decimals for SATX.
 
 This module introduces a small wrapper type (`Fixed`) that represents a decimal
@@ -11,13 +31,11 @@ Design goals:
 - Keep rounding explicit: `Fixed.__mul__` is exact via a rescale constraint; no hidden rounding.
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from decimal import Decimal
 from fractions import Fraction
 import math
-from typing import Any, Optional, Union
+from typing import Any, List, Optional, Tuple, Union
 import warnings
 
 from .rational import Rational
@@ -119,6 +137,27 @@ def _coerce_numeric_value(value: Any) -> Fraction:
     raise TypeError(f"Unsupported numeric value: {type(value).__name__}")
 
 
+def _parse_bounds_assumptions(assumptions: Any) -> Tuple[Optional[Fraction], Optional[Fraction]]:
+    if assumptions is None:
+        return None, None
+    if isinstance(assumptions, dict):
+        min_value = assumptions.get("min", None)
+        max_value = assumptions.get("max", None)
+    elif isinstance(assumptions, (tuple, list)) and len(assumptions) == 2:
+        min_value, max_value = assumptions
+    else:
+        raise TypeError("assumptions must be a dict with min/max or a (min, max) tuple")
+    if min_value is not None:
+        if isinstance(min_value, bool) or not _is_numeric_value(min_value):
+            raise TypeError("assumptions min must be numeric or None")
+        min_value = _coerce_numeric_value(min_value)
+    if max_value is not None:
+        if isinstance(max_value, bool) or not _is_numeric_value(max_value):
+            raise TypeError("assumptions max must be numeric or None")
+        max_value = _coerce_numeric_value(max_value)
+    return min_value, max_value
+
+
 def _raw_max_abs(bits: int, signed: bool) -> int:
     if bits <= 0:
         return 0
@@ -137,6 +176,33 @@ def _maybe_warn_overflow(scale: int, bits: int, signed: bool) -> None:
             stacklevel=3,
         )
         _WARNED_OVERFLOW.add(key)
+
+
+def _fixed_mul_cache(alu: Any) -> dict:
+    cache = getattr(alu, "_fixed_mul_cache", None)
+    if cache is None:
+        cache = {}
+        alu._fixed_mul_cache = cache
+    return cache
+
+
+def _fixed_mul_cache_key(lhs: Unit, rhs: Unit, scale: int, mode: str) -> tuple:
+    lhs_block = tuple(lhs.block)
+    rhs_block = tuple(rhs.block)
+    if lhs_block > rhs_block:
+        lhs_block, rhs_block = rhs_block, lhs_block
+    return (lhs_block, rhs_block, lhs.bits, scale, lhs.alu.signed, mode)
+
+
+def _cached_raw_product(lhs: Unit, rhs: Unit) -> Any:
+    cache = _fixed_mul_cache(lhs.alu)
+    key = _fixed_mul_cache_key(lhs, rhs, 0, "raw")
+    cached = cache.get(key)
+    if cached is not None:
+        return cached
+    prod = lhs * rhs
+    cache[key] = prod
+    return prod
 
 
 @dataclass(frozen=True)
@@ -227,10 +293,18 @@ class Fixed:
             return self.value * other.value
         _maybe_warn_overflow(self.scale, self.raw.bits, self.raw.alu.signed)
 
+        cache = _fixed_mul_cache(self.raw.alu)
+        key = _fixed_mul_cache_key(self.raw, other.raw, self.scale, "exact")
+        cached = cache.get(key)
+        if cached is not None:
+            return cached
         r = Unit(self.raw.alu, bits=self.raw.bits)
         self.raw.alu.variables.append(r)
-        assert (self.raw * other.raw) == (r * self.scale)
-        return Fixed(r, self.scale)
+        prod = _cached_raw_product(self.raw, other.raw)
+        assert prod == (r * self.scale)
+        result = Fixed(r, self.scale)
+        cache[key] = result
+        return result
 
     def __rmul__(self, other: Any):
         return self.__mul__(other)
@@ -382,6 +456,78 @@ def fixed_const(x: NumberLike, *, scale: int = 100) -> Fixed:
     return Fixed(raw, scale)
 
 
+def fixed_lcm_scale(a: Fixed, b: Fixed) -> Tuple[int, int, int]:
+    if not isinstance(a, Fixed) or not isinstance(b, Fixed):
+        raise TypeError("fixed_lcm_scale expects (Fixed, Fixed)")
+    if a.raw.alu is not b.raw.alu:
+        raise ValueError("cannot combine Fixed values from different SATX engines")
+    gcd = math.gcd(a.scale, b.scale)
+    lcm = (a.scale // gcd) * b.scale
+    return lcm, lcm // a.scale, lcm // b.scale
+
+
+def fixed_rescale_to(x: Fixed, target_scale: int) -> Fixed:
+    if not isinstance(x, Fixed):
+        raise TypeError("fixed_rescale_to expects Fixed")
+    target_scale = _require_positive_int("target_scale", target_scale)
+    if x.scale == target_scale:
+        return x
+    _check_scale_fits_unit(target_scale, x.raw)
+
+    if target_scale % x.scale == 0:
+        factor = target_scale // x.scale
+        if x.raw.value is not None:
+            raw_value = x.raw.value * factor
+            _check_raw_value_fits_engine(raw_value)
+            return Fixed(_stdlib.constant(raw_value), target_scale)
+        raw = x.raw * factor
+        if isinstance(raw, int):
+            _check_raw_value_fits_engine(raw)
+            return Fixed(_stdlib.constant(raw), target_scale)
+        return Fixed(raw, target_scale)
+
+    if x.scale % target_scale == 0:
+        factor = x.scale // target_scale
+        if x.raw.value is not None:
+            if x.raw.value % factor != 0:
+                raise ValueError("fixed_rescale_to requires exact division")
+            raw_value = x.raw.value // factor
+            _check_raw_value_fits_engine(raw_value)
+            return Fixed(_stdlib.constant(raw_value), target_scale)
+        assert x.raw % factor == 0
+        raw = x.raw // factor
+        if isinstance(raw, int):
+            _check_raw_value_fits_engine(raw)
+            return Fixed(_stdlib.constant(raw), target_scale)
+        return Fixed(raw, target_scale)
+
+    raise ValueError("target_scale must be a multiple of the source scale (or vice versa)")
+
+
+def fixed_add_rescaled(a: Fixed, b: Fixed, *, target_scale: Optional[int] = None) -> Fixed:
+    if not isinstance(a, Fixed) or not isinstance(b, Fixed):
+        raise TypeError("fixed_add_rescaled expects (Fixed, Fixed)")
+    if a.raw.alu is not b.raw.alu:
+        raise ValueError("cannot add Fixed values from different SATX engines")
+
+    if target_scale is None:
+        target_scale, _, _ = fixed_lcm_scale(a, b)
+    else:
+        target_scale = _require_positive_int("target_scale", target_scale)
+
+    ar = fixed_rescale_to(a, target_scale)
+    br = fixed_rescale_to(b, target_scale)
+    if ar.raw.value is not None and br.raw.value is not None:
+        raw_value = ar.raw.value + br.raw.value
+        _check_raw_value_fits_engine(raw_value)
+        return Fixed(_stdlib.constant(raw_value), target_scale)
+    raw_sum = ar.raw + br.raw
+    if isinstance(raw_sum, int):
+        _check_raw_value_fits_engine(raw_sum)
+        return Fixed(_stdlib.constant(raw_sum), target_scale)
+    return Fixed(raw_sum, target_scale)
+
+
 def as_fixed(u: Unit, scale: int) -> Fixed:
     scale = _require_positive_int("scale", scale)
     return Fixed(u, scale)
@@ -496,7 +642,7 @@ def fixed_mul_floor(a: Fixed, b: Fixed) -> Fixed:
         raise ValueError(f"scale mismatch for multiplication: {a.scale} != {b.scale}")
     if a.raw.alu is not b.raw.alu:
         raise ValueError("cannot multiply Fixed values from different SATX engines")
-    prod = a.raw * b.raw
+    prod = _cached_raw_product(a.raw, b.raw)
     if isinstance(prod, int):
         raw_value = _as_int_from_value(prod, a.scale, "floor")
         _check_raw_value_fits_engine(raw_value)
@@ -518,7 +664,7 @@ def fixed_mul_round(a: Fixed, b: Fixed) -> Fixed:
         raise ValueError(f"scale mismatch for multiplication: {a.scale} != {b.scale}")
     if a.raw.alu is not b.raw.alu:
         raise ValueError("cannot multiply Fixed values from different SATX engines")
-    prod = a.raw * b.raw
+    prod = _cached_raw_product(a.raw, b.raw)
     if isinstance(prod, int):
         raw_value = _as_int_from_value(prod, a.scale, "round")
         _check_raw_value_fits_engine(raw_value)
@@ -530,7 +676,44 @@ def fixed_mul_round(a: Fixed, b: Fixed) -> Fixed:
     return Fixed(_stdlib.constant(raw), a.scale)
 
 
-def fixed_advice(*vars: Any, degree: int = 2, expected_max: Optional[float] = None) -> dict:
+def fixed_bounds(expr_or_fixed: Any, assumptions: Any = None) -> Tuple[Fraction, Fraction]:
+    if isinstance(expr_or_fixed, Fixed):
+        raw = expr_or_fixed.raw
+        scale = expr_or_fixed.scale
+    elif isinstance(expr_or_fixed, Unit):
+        raw = expr_or_fixed
+        scale = 1
+    elif _is_numeric_value(expr_or_fixed):
+        value = _coerce_numeric_value(expr_or_fixed)
+        return value, value
+    else:
+        raise TypeError("fixed_bounds expects Fixed, Unit, or numeric value")
+
+    bits = raw.bits if raw.bits is not None else raw.alu.bits
+    signed = raw.alu.signed
+    if raw.value is not None:
+        min_raw = max_raw = raw.value
+    else:
+        if signed:
+            min_raw = -(1 << (bits - 1))
+            max_raw = (1 << (bits - 1)) - 1
+        else:
+            min_raw = 0
+            max_raw = (1 << bits) - 1
+
+    min_value = Fraction(min_raw, scale)
+    max_value = Fraction(max_raw, scale)
+    min_assumed, max_assumed = _parse_bounds_assumptions(assumptions)
+    if min_assumed is not None:
+        min_value = max(min_value, min_assumed)
+    if max_assumed is not None:
+        max_value = min(max_value, max_assumed)
+    if min_value > max_value:
+        raise ValueError("fixed_bounds assumptions are inconsistent with engine range")
+    return min_value, max_value
+
+
+def fixed_advice(*vars: Any, degree: int = 2, expected_max: Optional[float] = None, explain: bool = False) -> dict:
     _stdlib.check_engine()
     if isinstance(degree, bool) or not isinstance(degree, int):
         raise TypeError(f"degree must be a Python int, got {type(degree).__name__}")
@@ -541,6 +724,8 @@ def fixed_advice(*vars: Any, degree: int = 2, expected_max: Optional[float] = No
             raise TypeError("expected_max must be a number")
         if expected_max <= 0:
             raise ValueError("expected_max must be > 0")
+    if not isinstance(explain, bool):
+        raise TypeError("explain must be a bool")
 
     bits = _stdlib.csp.bits
     signed = _stdlib.csp.signed
@@ -579,8 +764,93 @@ def fixed_advice(*vars: Any, degree: int = 2, expected_max: Optional[float] = No
             entry["bits_suggested"] = bits_suggested
         entries.append(entry)
 
-    return {
+    result = {
         "bits": bits,
         "signed": signed,
         "scales": entries,
     }
+    if explain:
+        scale_list = ", ".join(str(entry["scale"]) for entry in entries)
+        lines = [
+            f"raw_max_abs={raw_max_abs} for {bits}-bit {'signed' if signed else 'unsigned'} engine.",
+            f"Scales: {scale_list}; resolution=1/scale, value_max_abs=raw_max_abs/scale.",
+            f"safe_mul_value_max~sqrt(raw_max_abs)/scale; safe_pow_value_max uses degree={degree}.",
+        ]
+        if any(entry["scale"] * entry["scale"] > raw_max_abs for entry in entries):
+            lines.append("Overflow risk: scale^2 exceeds raw_max_abs for some scales.")
+        if expected_max is not None:
+            lines.append(f"bits_suggested uses expected_max={expected_max}.")
+        result["explain"] = "\n".join(lines[:6])
+    return result
+
+
+def _unit_bits_from_value(u: Unit) -> List[int]:
+    if u.value is None:
+        raise ValueError("variable has no model value; call satx.satisfy() first")
+    bits = u.bits if u.bits is not None else u.alu.bits
+    value = int(u.value)
+    if u.alu.signed and value < 0:
+        value = (1 << bits) + value
+    out = []
+    for _ in range(bits):
+        out.append(value & 1)
+        value >>= 1
+    return out
+
+
+def block_fixed_solution(vars: Any) -> List[int]:
+    _stdlib.check_engine()
+    if isinstance(vars, (Fixed, Unit)):
+        vars = [vars]
+    if not isinstance(vars, (list, tuple)):
+        raise TypeError("block_fixed_solution expects a list of Fixed or Unit")
+    clause = []
+    for var in vars:
+        if isinstance(var, Fixed):
+            raw = var.raw
+        elif isinstance(var, Unit):
+            raw = var
+        else:
+            raise TypeError("block_fixed_solution expects Fixed or Unit entries")
+        bits = _unit_bits_from_value(raw)
+        for bit_id, bit_val in zip(raw.block, bits):
+            clause.append(-bit_id if bit_val else bit_id)
+    if not clause:
+        raise ValueError("block_fixed_solution requires at least one variable")
+    _stdlib.csp.add_block(clause)
+    return clause
+
+
+def enumerate_models_fixed(
+    vars: Any,
+    *,
+    limit: Optional[int] = None,
+    solver: str = "slime",
+    params: str = "",
+    log: bool = False,
+):
+    if limit is not None:
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise TypeError("limit must be a Python int or None")
+        if limit <= 0:
+            raise ValueError("limit must be > 0")
+    if isinstance(vars, (Fixed, Unit)):
+        vars = [vars]
+    if not isinstance(vars, (list, tuple)):
+        raise TypeError("enumerate_models_fixed expects a list of Fixed or Unit")
+
+    count = 0
+    while _stdlib.satisfy(solver=solver, params=params, log=log):
+        model = []
+        for var in vars:
+            if isinstance(var, Fixed):
+                model.append(var.value)
+            elif isinstance(var, Unit):
+                model.append(var.value)
+            else:
+                raise TypeError("enumerate_models_fixed expects Fixed or Unit entries")
+        yield model
+        block_fixed_solution(vars)
+        count += 1
+        if limit is not None and count >= limit:
+            break

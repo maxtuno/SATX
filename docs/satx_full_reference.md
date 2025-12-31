@@ -613,7 +613,7 @@ Minimal example:
 ```python
 import satx
 
-assert satx.version() == "0.3.9"
+assert satx.version() == "0.4.0"
 ```
 
 Use case: sanity check you are running SATX (no solver involved).

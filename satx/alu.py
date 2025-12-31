@@ -1,24 +1,21 @@
 """
-Copyright (c) 2012-2021 Oscar Riveros [https://twitter.com/maxtuno].
+Copyright (c) 2012–2026 Oscar Riveros
 
-Permission is hereby granted, free of charge, to any person obtaining
-a copy of this software and associated documentation files (the
-"Software"), to deal in the Software without restriction, including
-without limitation the rights to use, copy, modify, merge, publish,
-distribute, sublicense, and/or sell copies of the Software, and to
-permit persons to whom the Software is furnished to do so, subject to
-the following conditions:
+SATX is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of
+the License, or (at your option) any later version.
 
-The above copyright notice and this permission notice shall be
-included in all copies or substantial portions of the Software.
+SATX is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+Commercial licensing options are available.
+See COMMERCIAL.md for details.
 """
 
 from satx.unit import Unit
@@ -29,8 +26,11 @@ class ALU:
         import sys
         sys.setrecursionlimit(1 << 16)
         self.cnf = cnf
+        self._cnf_clauses = [] if cnf == '' else None
         if cnf != '':
             self.cnf_file = open(cnf, 'w+')
+        else:
+            self.cnf_file = None
         self.mips = []
         self.variables = []
         self.map = {}
@@ -45,32 +45,35 @@ class ALU:
         self.true = self.add_variable()
         self.false = -self.true
         self.constants = {}
-        if self.cnf != '':
-            self.cnf_file.write(' '.join(list(map(str, [-self.true]))) + ' 0\n')
-            self.number_of_clauses += 1
+        clause = [-self.true]
+        if self.cnf_file is None:
+            self._cnf_clauses.append(clause)
         else:
-            raise Exception('No cnf file specified...')
+            self.cnf_file.write(' '.join(list(map(str, clause))) + ' 0\n')
+        self.number_of_clauses += 1
         self.signed = False
         self.simplify = False
 
     @property
     def zero(self):
         if self.__0 is None:
-            if 0 in self.constants:
-                self.__0 = self.int(block=self.constants[0])
+            key = (0, self.bits)
+            if key in self.constants:
+                self.__0 = self.int(block=self.constants[key])
             else:
                 self.__0 = self.int(value=0)
-                self.constants[0] = self.__0.block
+                self.constants[key] = self.__0.block
         return self.__0
 
     @property
     def one(self):
         if self.__1 is None:
-            if 1 in self.constants:
-                self.__1 = self.int(block=self.constants[1])
+            key = (1, self.bits)
+            if key in self.constants:
+                self.__1 = self.int(block=self.constants[key])
             else:
                 self.__1 = self.int(value=1)
-                self.constants[1] = self.__1.block
+                self.constants[key] = self.__1.block
         return self.__1
 
     def add_variable(self):
@@ -86,10 +89,10 @@ class ALU:
                 return clause
             if not clause:
                 return clause
-        if self.cnf != '':
-            self.cnf_file.write(' '.join(list(map(str, clause))) + ' 0\n')
+        if self.cnf_file is None:
+            self._cnf_clauses.append(list(clause))
         else:
-            raise Exception('No cnf file specified...')
+            self.cnf_file.write(' '.join(list(map(str, clause))) + ' 0\n')
         self.number_of_clauses += 1
         return clause
 
@@ -118,14 +121,16 @@ class ALU:
     def create_constant(self, value, size=None):
         if size is None:
             size = self.bits
-        if value in self.constants.keys():
-            return self.constants[value]
+        value = int(value)
+        key = (value, size)
+        if key in self.constants.keys():
+            return self.constants[key]
         sign = value > 0
         if not sign:
-            self.constants[value] = [-b for b in self.create_block(size=size)]
+            self.constants[key] = [-b for b in self.create_block(size=size)]
         else:
-            self.constants[value] = self.create_block(size=size)
-        block = self.constants[value]
+            self.constants[key] = self.create_block(size=size)
+        block = self.constants[key]
         for i in range(len(block)):
             if value % 2 == 0:
                 self.add_block([-block[i]])

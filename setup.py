@@ -18,11 +18,22 @@ Commercial licensing options are available.
 See COMMERCIAL.md for details.
 """
 
+import re
+from pathlib import Path
 from setuptools import setup, find_packages
+
+
+def _read_version():
+    path = Path(__file__).with_name("satx") / "stdlib.py"
+    content = path.read_text(encoding="utf-8", errors="replace")
+    match = re.search(r'^VERSION\\s*=\\s*[\"\\\']([^\"\\\']+)[\"\\\']', content, re.M)
+    if not match:
+        raise RuntimeError("Unable to find VERSION in satx/stdlib.py")
+    return match.group(1)
 
 setup(
     name="SATX",
-    version="0.3.9",
+    version=_read_version(),
     packages=find_packages(),
     url="https://github.com/maxtuno/SATX",
     license="AGPL-3.0-or-later",
