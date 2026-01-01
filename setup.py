@@ -24,12 +24,12 @@ from setuptools import setup, find_packages
 
 
 def _read_version():
-    path = Path(__file__).with_name("satx") / "stdlib.py"
-    content = path.read_text(encoding="utf-8", errors="replace")
-    match = re.search(r'^VERSION\\s*=\\s*[\"\\\']([^\"\\\']+)[\"\\\']', content, re.M)
-    if not match:
+    txt = Path("satx/stdlib.py").read_text(encoding="utf-8", errors="replace")
+    m = re.search(r'^\s*VERSION\s*=\s*[\'"]([^\'"]+)[\'"]', txt, re.M)
+    if not m:
         raise RuntimeError("Unable to find VERSION in satx/stdlib.py")
-    return match.group(1)
+    return m.group(1)
+
 
 setup(
     name="SATX",
@@ -53,3 +53,4 @@ setup(
     ],
     python_requires=">=3.8",
 )
+
