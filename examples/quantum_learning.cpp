@@ -12,7 +12,7 @@
 
 int main() {
     using namespace satx::quantum;
-    constexpr std::size_t W = 8, F = 4;
+    constexpr std::size_t W = 10, F = 6;
 
     qcircuit<W, F> U;
     U.push(0, rx2<W, F>(0.7));
