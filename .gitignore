@@ -1,0 +1,31 @@
+# ── artefactos de compilación (no distribuir) ──
+build/
+bin/
+.cache/
+*.exe
+*.o
+*.obj
+*.a
+*.lib
+*.ninja
+.ninja_deps
+.ninja_log
+compile_commands.json
+CMakeCache.txt
+CMakeFiles/
+Testing/
+
+# ── benchmarks: solo se distribuyen los generadores y el corredor ──
+benchmarks/cnf/
+benchmarks/tools/*.exe
+benchmarks/tools/*.o
+
+# ── archivos de depuración y sistemas ──
+dbg_*.cnf
+*.drat
+*.drat.trim
+.vscode/
+.idea/
+*.user
+Thumbs.db
+.DS_Store
