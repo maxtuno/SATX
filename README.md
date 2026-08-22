@@ -168,7 +168,7 @@ satx/
 ├── src/kerberos/          # Kerberos (C17): SLIME, BASILISK, PIXIE, WMIBO,
 │                          # GRINDER, KRB_ACCEL, KRB_PARALLEL, despachador
 ├── src/solver/            # puente C++ (kerberos.cpp)
-├── examples/              # 15 ejemplos completos
+├── examples/              # 16 ejemplos completos
 ├── tests/                 # suite de pruebas sin framework
 ├── benchmarks/            # generadores, validador de modelos y corredor
 ├── docs/                  # architecture.md, manual.md
@@ -237,6 +237,7 @@ Los ejemplos completos en `examples/`:
 | `send_more_money` | Criptoaritmética clásica SEND + MORE = MONEY con acarreos. |
 | `map_coloring` | Coloreo de grafos (mapa de Australia) con 3 colores. |
 | `nqueens` | Las N reinas sobre un tablero 4×4. |
+| `rect_packing` | Empaquetado 2D estilo mochila: cuántos rectángulos aleatorios caben en un contenedor (N, H, W y semilla por parámetros), optimizado por SAT; genera JSON para graficar con `plot_packing.py`. |
 | `optimize_sum` | Optimización usando SAT como oráculo (maximizar x+y con restricciones). |
 | `job_shop` | Planificación con dos máquinas, tareas sin solaparse y plazo. |
 | `dice_distribution` | Distribución de probabilidad de un dado trucado (fracciones 2⁻³). |
@@ -249,6 +250,10 @@ Los ejemplos completos en `examples/`:
 | `sudoku` | Sudoku 9×9 resuelto por SAT con la aritmética CBE. |
 | `model_counting` | Conteo de modelos (#SAT) con cláusulas de bloqueo y sesiones incrementales. |
 | `complex_polynomial_roots` | Raíces de un polinomio con coeficientes CBE, enumeradas por SAT. |
+
+Ejemplo visual (`rect_packing`, generado con `plot_packing.py`):
+
+![rect_packing — problema y solución por SAT](examples/rect_packing_example.png)
 
 ---
 
