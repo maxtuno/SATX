@@ -11,7 +11,7 @@
 // solver encuentra v.
 
 int main() {
-    using C = satx::complex<16, 8>;   // punto fijo: 8 bits fraccionarios
+    using C = satx::complex<32, 16>;   // punto fijo: 8 bits fraccionarios
 
     satx::engine e;
     const C v{e};                     // velocidad inicial (incógnita)
