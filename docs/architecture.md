@@ -1,8 +1,13 @@
-# satx — Arquitectura de Números Negabinarios Complejos
+# satx — Arquitectura de Números Complejo Binario Entrelazado CBE
+
+**Formato numérico propio:** los números de este sistema usan el formato **CBE
+(Complejo Binario Entrelazado)**, de autoría de Oscar Riveros (2026, §9.0); no es un
+formato negabinario clásico ni ninguna representación numérica previa, estándar o
+patentada.
 
 **Copyright (c) 2026 Oscar Riveros. Todos los derechos reservados.** Licencia dual: Apache-2.0 para uso personal; portes a otros lenguajes requieren licencia comercial con autorización expresa del autor (ver LICENSE.txt).
 
-**Estado:** Documento fundacional — Etapa 1: encoding negabinario de complejos, las cuatro
+**Estado:** Documento fundacional — Etapa 1: encoding CBE de complejos, las cuatro
 operaciones básicas y las operaciones derivadas de la Etapa 1 (unarias, relacionales y de
 acceso a rieles — §10.6); **Etapa 2 entregada**: `abs_sq`, comparación lexicográfica
 (`lt_lit`/`le_lit`), `pow` con exponente entero (square & multiply) y `root_cbe` (§10.7).
@@ -25,9 +30,9 @@ adecuada a C++26 (`constexpr`, concepts, `std::expected`, spans/ranges).
 
 ## 1. Propósito
 
-1. Definir la representación canónica de los **números negabinarios (base −2)** y del
-   **número complejo** construido sobre ellos (formato CBE: *Complejo Binario
-   Entrelazado*, §9.0).
+1. Definir la representación canónica de los **números del formato CBE** (*Complejo
+   Binario Entrelazado*, §9.0): los dos rieles de enteros en base −2 con escala
+   `2^F` que forman el número complejo.
 2. Especificar las **cuatro operaciones básicas** — suma, resta, multiplicación, división —
    tanto en ruta **concreta** (plegado de constantes, `constexpr`) como en ruta
    **simbólica** (circuitos booleanos que se compilan a CNF).
