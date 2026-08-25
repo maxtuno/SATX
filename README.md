@@ -1,4 +1,4 @@
-# satx · Sistema de Cómputo Clónico
+# SATX — Sistema de Cómputo Clónico
 
 **Librería autocontenida de C++26 para aritmética de números complejos CBE
 (Complejo Binario Entrelazado) resolubles por SAT.**
@@ -9,12 +9,18 @@ fijo — escritas en un formato numérico original — a circuitos booleanos
 sistema, escrito en C17 e integrado como parte integral del producto: **sin
 dependencias de terceros** y **sin solvers externos**.
 
-Una misma expresión puede evaluarse por dos rutas:
+> **Sobre el nombre.** El sistema se denomina de **cómputo clónico** porque
+> permite modelar la computación cuántica **con clonación**: los estados y las
+> operaciones pueden copiarse y reutilizarse sin restricción, una capacidad
+> que el teorema de no-clonación prohíbe en mecánica cuántica y que aquí
+> constituye el principio de diseño del formato CBE.
+
+Una misma expresión admite dos rutas de evaluación:
 
 - **Ruta concreta** — operaciones sobre constantes, evaluadas `constexpr`
   con aritmética exacta sobre enteros de 128 bits.
 - **Ruta simbólica** — las incógnitas son variables booleanas libres; cada
-  operación compila un circuito (gates Tseitin → CNF) que el kernel CDCL
+  operación compila un circuito (compuertas Tseitin → CNF) que el kernel CDCL
   **SLIME** de Kerberos resuelve, devolviendo los valores de las incógnitas.
 
 **Precisión y detección de pérdida.** La aritmética interna es exacta (enteros
@@ -22,8 +28,64 @@ de 128 bits en la ruta concreta; circuitos booleanos en la simbólica). El
 acceso `value()` devuelve `double` y **detecta** la pérdida de precisión: si
 el valor exacto `raw/2^F` no es representable en `double` (más de 53 bits
 significativos), lanza `std::overflow_error` en lugar de devolver un valor
-redondeado silenciosamente. Para el valor exacto sin pasar por `double`,
-use `value_raw()` (componentes enteras `int64`).
+redondeado silenciosamente. Para obtener el valor exacto sin pasar por
+`double`, use `value_raw()` (componentes enteras `int64`).
+
+---
+
+## SATX PRO — versión privada y catálogo de problemas
+
+Este repositorio constituye la **versión pública de muestra (preview)** del
+sistema. El desarrollo completo se concentra en **SATX PRO**, la versión
+privada, en la que los problemas reales — logística y distribución, última
+milla, industria, mezclas y problemas atípicos — se documentan e implementan
+de forma formal.
+
+El catálogo de SATX PRO
+([`catalogo_problemas_SATX_PRO.md`](satx_pro/catalogo_problemas_SATX_PRO.md))
+reúne treinta y un problemas. Cada ficha contiene la **especificación formal**
+(datos, variables, restricciones y objetivo), la **codificación SATX**
+concreta y **guías de escala**, indicando el kernel recomendado — SLIME,
+BASILISK, PIXIE o WMIBO — según la clase del problema. La siguiente tabla
+relaciona cada problema del catálogo con su implementación de referencia:
+
+| # | Problema | Catálogo | Implementación |
+|---|---|---|---|
+| 1 | Asignación de almacenes a clientes (facility location) | 1.1 | [facility_location.cpp](satx_pro/facility_location.cpp) |
+| 2 | Rutas de vehículos con capacidad (CVRP) | 1.2 | [cvrp.cpp](satx_pro/cvrp.cpp) · [wmibo_tsp.cpp](satx_pro/wmibo_tsp.cpp) |
+| 3 | Cubicaje: carga de contenedores 2D/3D (bin packing) | 1.3 | [bin_packing.cpp](satx_pro/bin_packing.cpp) · [rect_packing.cpp](satx_pro/rect_packing.cpp) · [rect_packing_rot.cpp](satx_pro/rect_packing_rot.cpp) |
+| 4 | Programación de muelles de carga (dock scheduling) | 1.4 | [dock_scheduling.cpp](satx_pro/dock_scheduling.cpp) |
+| 5 | Cross-docking con transbordo | 1.5 | [cross_docking.cpp](satx_pro/cross_docking.cpp) |
+| 6 | Reparto con ventanas de tiempo y flota heterogénea (VRPTW) | 2.1 | [vrptw.cpp](satx_pro/vrptw.cpp) |
+| 7 | Agrupación de pedidos (order batching) | 2.2 | [order_batching.cpp](satx_pro/order_batching.cpp) |
+| 8 | Asignación de casilleros y puntos de recogida | 2.3 | [lockers.cpp](satx_pro/lockers.cpp) |
+| 9 | Rutas de técnicos con habilidades (workforce scheduling) | 2.4 | [workforce.cpp](satx_pro/workforce.cpp) |
+| 10 | Reparto con drones (TSP-D) | 2.5 | [tsp_drones.cpp](satx_pro/tsp_drones.cpp) |
+| 11 | Programación de producción job shop / flow shop | 3.1 | [job_shop.cpp](satx_pro/job_shop.cpp) |
+| 12 | Secuenciación de coladas y cambios de aleación (changeover) | 3.2 | [changeover_lotsizing.cpp](satx_pro/changeover_lotsizing.cpp) |
+| 13 | Corte de materiales (cutting stock / guillotine) | 3.3 | [cutting_stock.cpp](satx_pro/cutting_stock.cpp) |
+| 14 | Planificación de mantenimiento preventivo | 3.4 | [maintenance.cpp](satx_pro/maintenance.cpp) |
+| 15 | Verificación de circuitos y patrones de prueba | 3.5 | [circuit_equivalence.cpp](satx_pro/circuit_equivalence.cpp) |
+| 16 | Paletización (patrones de apilado) | 3.6 | [palletization.cpp](satx_pro/palletization.cpp) |
+| 17 | Dieta / mezcla de alimentos (LP) | 4.1 | [diet_lp.cpp](satx_pro/diet_lp.cpp) |
+| 18 | Mezcla de minerales y carbón con calidad (MIP) | 4.2 | [blending_mip.cpp](satx_pro/blending_mip.cpp) |
+| 19 | Mezcla de crudos con índices no lineales | 4.3 | [crude_blending.cpp](satx_pro/crude_blending.cpp) |
+| 20 | Mezclas de productos químicos con pureza y reactividad | 4.4 | [chemical_purity.cpp](satx_pro/chemical_purity.cpp) |
+| 21 | Programación de personal con reglas legales (nurse rostering) | 5.1 | [nurse_rostering.cpp](satx_pro/nurse_rostering.cpp) |
+| 22 | Calendarios deportivos (round-robin con restricciones) | 5.2 | [sports_scheduling.cpp](satx_pro/sports_scheduling.cpp) |
+| 23 | Diseño de experimentos: arrays de cobertura (covering arrays) | 5.3 | [covering_arrays.cpp](satx_pro/covering_arrays.cpp) |
+| 24 | Generación procedural de mapas y niveles | 5.4 | [procedural_map.cpp](satx_pro/procedural_map.cpp) |
+| 25 | Composición musical con reglas | 5.5 | [music_rules.cpp](satx_pro/music_rules.cpp) |
+| 26 | Rompecabezas y juegos lógicos (sudoku, cripto-aritmética) | 5.6 | [sudoku.cpp](satx_pro/sudoku.cpp) · [send_more_money.cpp](satx_pro/send_more_money.cpp) |
+| 27 | Factorización de enteros gaussianos | 5.7 | [gaussian_integer_factorization.cpp](satx_pro/gaussian_integer_factorization.cpp) |
+| 28 | Física inversa: aprendizaje de operadores cuánticos | 5.8 | [quantum_learning.cpp](satx_pro/quantum_learning.cpp) |
+| 29 | Planificación de movimientos de robot (discretizada) | 5.9 | [robot_path.cpp](satx_pro/robot_path.cpp) |
+| 30 | Planificación de menús con nutrición y presupuesto | 5.10 | [menu_planning.cpp](satx_pro/menu_planning.cpp) |
+| 31 | Rutas con métricas de sostenibilidad (CO₂) | 5.11 | [co2_routes.cpp](satx_pro/co2_routes.cpp) |
+
+> **Gestión privada.** El catálogo y las implementaciones de `satx_pro/` no
+> forman parte de la distribución pública de este repositorio y se gestionan
+> exclusivamente en privado con el autor, **Oscar Riveros**.
 
 ---
 
@@ -71,36 +133,10 @@ en la biblioteca estática `satx_kerberos` y compartidos por el puente C++26
 
 Cada kernel recibe el nombre de una **cabeza** del motor:
 
-### SLIME — SAT CDCL (la cabeza principal)
+### SLIME — SAT solver de última generación
 
-Kernel de satisfacibilidad booleana (SAT) sobre CNF, con arquitectura CDCL
-moderna:
-
-- **Propagación** por watch lists con literal bloqueante; binarias tratadas
-  en línea.
-- **Ramificación** VSIDS (heap por actividad con reescalado) o CHB, con
-  selección por MAB y guardado de fases (phase saving).
-- **Reinicios** Luby + EMA con margen adaptativo y reutilización de niveles
-  del trail.
-- **Análisis de conflictos** 1-UIP con minimización recursiva (iterativa),
-  subsumción eager de las últimas cláusulas aprendidas y reutilización de la
-  cláusula de conflicto.
-- **Backtracking cronológico** acotado (`--chrono`).
-- **Reducción de la base de cláusulas** por calidad (LBD) con niveles
-  (tiering: binarias, LBD ≤ 2 y tamaño ≤ 6 se conservan).
-- **Rephasing** periódico de fases (`--rephase`).
-- **Covertrace**: cubos de escape y sondeo de reinicios para escapar de
-  mínimos locales.
-- **HESS**: búsqueda local exacta como atajo inicial (opcional).
-- **Simplificación raíz**: literales puros, sondeo de literales fallidos
-  (bounded), subsumción y fortalecimiento (self-subsuming resolution),
-  sustitución de literales equivalentes (SCC sobre el grafo de implicación
-  binario) y eliminación acotada de variables (`--bve`, experimental, con
-  reconstrucción de modelo).
-- **Sesiones incrementales** con suposiciones (assumptions) y extensión de
-  modelo para variables eliminadas.
-- **Pruebas DRAT** (`--proof`) para verificación independiente de UNSAT.
-- Formato de salida DIMACS (`s SATISFIABLE` / `s UNSATISFIABLE`).
+Kernel de satisfacibilidad booleana (SAT) sobre CNF con pruebas DRAT para la
+verificación independiente de resultados UNSAT.
 
 ### BASILISK — conteo exacto de modelos (#SAT)
 
@@ -168,11 +204,14 @@ satx/
 ├── src/kerberos/          # Kerberos (C17): SLIME, BASILISK, PIXIE, WMIBO,
 │                          # GRINDER, KRB_ACCEL, KRB_PARALLEL, despachador
 ├── src/solver/            # puente C++ (kerberos.cpp)
-├── examples/              # 17 ejemplos completos
+├── satx_pro/              # SATX PRO (privado): catálogo de problemas e
+│                          # implementaciones; no se distribuye (ver
+│                          # sección «SATX PRO»)
+├── examples/              # ejemplos públicos de muestra (preview)
 ├── tests/                 # suite de pruebas sin framework
 ├── benchmarks/            # generadores, validador de modelos y corredor
 ├── docs/                  # architecture.md, manual.md
-├── template.cpp           # «Hola, mundo» (ver abajo)
+├── template.cpp           # punto de partida (ver «Ejemplos públicos»)
 ├── CMakeLists.txt
 └── LICENSE.txt            # licencia dual (ver más abajo)
 ```
@@ -224,11 +263,16 @@ powershell -File benchmarks/run.ps1
 
 ---
 
-## Ejemplos
+## Ejemplos públicos (versión de muestra)
 
-`template.cpp` — **«Hola, mundo» del sistema**: declara tres incógnitas
-complejas CBE, impone `z == x + y` y resuelve con el kernel SLIME. Es el
-punto de partida recomendado para principiantes.
+> Los ejemplos públicos de esta sección constituyen una **versión de muestra
+> (preview)** del sistema. El catálogo completo de problemas implementados —
+> logística y distribución, última milla, industria, mezclas y problemas
+> atípicos — pertenece a **SATX PRO** (`satx_pro/`), la versión privada que
+> se gestiona con el autor.
+
+`template.cpp` — **punto de partida**: declara tres incógnitas complejas CBE,
+impone `z == x + y` y resuelve con el kernel SLIME.
 
 Los ejemplos completos en `examples/`:
 
@@ -252,15 +296,6 @@ Los ejemplos completos en `examples/`:
 | `model_counting` | Conteo de modelos (#SAT) con cláusulas de bloqueo y sesiones incrementales. |
 | `complex_polynomial_roots` | Raíces de un polinomio con coeficientes CBE, enumeradas por SAT. |
 
-Ejemplo visual (`rect_packing`, generado con `plot_packing.py`):
-
-![rect_packing — problema y solución por SAT](examples/rect_packing_example.png)
-
-Con rotación de 90° habilitada (`rect_packing_rot`, generado con
-`plot_packing_rot.py`; «↻» marca las piezas que giraron):
-
-![rect_packing_rot — problema y solución con rotación por SAT](examples/rect_packing_rot_example.png)
-
 ---
 
 ## Licencia dual
@@ -270,21 +305,24 @@ puente C++26, la documentación, los ejemplos y los bancos de pruebas — se
 distribuye bajo **licencia dual**:
 
 1. **Uso personal**: Apache License, Versión 2.0.
-2. **Uso comercial y portes** (portar el sistema, en todo o en parte, a otros lenguajes de
-   programación): **licencia comercial** con la **autorización expresa y
-   escrita del autor (Oscar Riveros)**, quien establecerá las condiciones y
-   el precio de la transacción. Ninguna autorización se presume.
+2. **Uso comercial y portes** (portar el sistema, en todo o en parte, a otros
+   lenguajes de programación): **licencia comercial** con la **autorización
+   expresa y escrita del autor (Oscar Riveros)**, quien establecerá las
+   condiciones y el precio de la transacción. Ninguna autorización se presume.
 
 Los términos completos se detallan en [`LICENSE.txt`](LICENSE.txt), que
 incluye el texto íntegro de la Licencia Apache 2.0 y la adenda comercial
 para portes.
 
+> **SATX PRO** (`satx_pro/`) no forma parte de esta distribución pública: es
+> una versión privada que se gestiona con el autor (ver sección «SATX PRO»).
+
 ---
 
 ## Autoría
 
-- **Formato numérico CBE(W,F) — Complejo Binario Entrelazado**: Oscar
-  Riveros (2026), «Modelo Unificado de Cómputo Clónico».
+- **Formato numérico CBE(W,F) — Complejo Binario Entrelazado**: Oscar Riveros
+  (2026), «Modelo Unificado de Cómputo Clónico».
 - **Sistema satx y motor Kerberos**: Oscar Riveros (2026).
 
 Copyright © 2026 Oscar Riveros. Todos los derechos reservados.
